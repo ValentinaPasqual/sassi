@@ -1,3 +1,5 @@
+const base = import.meta.env.BASE_URL;
+
 document.addEventListener("DOMContentLoaded", function() {
     // Create container for the alpinist index
     const container = document.createElement('div');
@@ -38,7 +40,7 @@ document.addEventListener("DOMContentLoaded", function() {
     filterDiv.appendChild(guideFilter);
 
     // Fetch and process the TSV file
-    fetch("/leda/data/data.tsv")
+    fetch(`${base}/data/data.tsv`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
