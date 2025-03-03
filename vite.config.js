@@ -11,7 +11,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        mappa: resolve(__dirname, 'pages/mappa.html')
+        mappa: resolve(__dirname, 'pages/mappa.html'),
+        indice: resolve(__dirname, 'pages/indice.html')
       },
       output: {
         // The path prefixing is handled automatically by Vite
