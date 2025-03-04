@@ -1,7 +1,7 @@
 {
   "map": {
-    "initialView": [51.505, -0.09],
-    "initialZoom": 5,
+    "initialView": [46.5, 9.8],
+    "initialZoom": 7,
     "tileLayer": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     "attribution": "© OpenStreetMap contributors"
   },

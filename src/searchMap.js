@@ -1,15 +1,19 @@
 import './style.css';
 import itemsjs from 'itemsjs';
-import 'leaflet/dist/leaflet.css'; 
-import L from 'leaflet';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import 'leaflet.markercluster';
+import { parseData } from './utils/dataParser.js';
+import { loadConfiguration } from './utils/configLoader.js';
+import { initMap } from './utils/initMap.js';
 
 const base = import.meta.env.BASE_URL;
 
 class LEDASearch {
   constructor() {
+
+    this.loadConfiguration = loadConfiguration.bind(this);
+    
+    this.config = null;
+    this.searchEngine = null;
+    
     this.state = {
       query: '',
       filters: {},
@@ -31,8 +35,15 @@ class LEDASearch {
 
   async initialize() {
     try {
-      await this.loadConfiguration();
-      await this.initSearchEngine();
+      this.config = await this.loadConfiguration();
+      const jsonData = await parseData();
+
+      this.config.searchConfig.per_page = jsonData.length;
+  
+      // Initialize itemsjs with the parsed JSON data
+      this.searchEngine = itemsjs(jsonData, this.config);
+  
+      console.log('Search engine initialized with data:', jsonData.length, 'items');
       
       // Update sort after config is loaded
       this.state.sort = this.config.searchConfig.defaultSort;
@@ -44,7 +55,12 @@ class LEDASearch {
       }
       this.state.filters = filters
       
-      this.initMap();
+      // initialise and imports the map 
+      const mapResult = initMap(this.config);
+      this.map = mapResult.map;
+      this.markers = mapResult.markers;
+      this.renderMarkers = mapResult.renderMarkers;
+
       this.bindEvents();
       await this.fetchAggregations();
       await this.performSearch();
@@ -53,210 +69,6 @@ class LEDASearch {
       console.error('Initialization error:', error);
       this.hideLoader();
     }
-  }
-
-  async loadConfiguration() {
-    try {
-      const response = await fetch(`${base}/config/map-config.json`);
-      this.config = await response.json();
-      console.log('Loaded configuration:', this.config);
-    } catch (error) {
-      console.error('Error loading configuration:', error);
-      throw error;
-    }
-  }
-
-  async initSearchEngine() {
-    try {
-      // Fetch the TSV file
-      const response = await fetch(`${base}/data/data.tsv`);
-      const tsvText = await response.text();
-         
-      // Parse TSV to JSON
-      const preprocessJsonData = this.parseTsvToJson(tsvText);
-
-      // Split multivalue fields based on config
-      const jsonData = this.processMultivalueFields(preprocessJsonData);
-
-      this.config.searchConfig.per_page = jsonData.lenght;
-
-      // Initialize itemsjs with the parsed JSON data
-      this.searchEngine = itemsjs(jsonData, this.config);
-
-      console.log('Search engine initialized with data:', jsonData.length, 'items');
-
-    } catch (error) {
-      console.error('Error initializing search engine:', error);
-      throw error;
-    }
-  }
-
-  // Add this method to process multivalue fields
-  processMultivalueFields(preprocessJsonData) {
-    const multivalueConfig = this.config.datasetConfig?.multivalue_rows || {};
-    
-    preprocessJsonData.forEach(item => {
-      Object.keys(multivalueConfig).forEach(field => {
-        if (item[field] && typeof item[field] === 'string') {
-          const separator = multivalueConfig[field];
-          item[field] = item[field].split(separator).map(val => val.trim());
-        }
-      });
-    });
-    
-    return preprocessJsonData;
-  }
-
-  // Helper method to parse TSV to JSON
-  parseTsvToJson(tsvText) {
-    // Split the TSV text into rows
-  const rows = tsvText.trim().split('\n');
-  
-  // Extract headers from the first row
-  const headers = rows[0].split('\t');
-  
-  // Convert each data row to a JSON object
-  return rows.slice(1).map(row => {
-    const values = row.split('\t');
-    const item = {};
-    
-    // Map each value to its corresponding header
-    headers.forEach((header, index) => {
-      // Handle the case where cell is not empty
-      if (index < values.length && values[index] !== '') {
-        const value = values[index];
-        
-        // Try to parse numbers and booleans
-        if (value.toLowerCase() === 'true') {
-          item[header] = true;
-        } else if (value.toLowerCase() === 'false') {
-          item[header] = false;
-        } else if (!isNaN(value) && value.trim() !== '') {
-          item[header] = Number(value);
-        } else {
-          item[header] = value;
-        }
-      } 
-    });
-    
-    return item;
-  });
-  }
-
-initMap() {
-    const { initialView, initialZoom, tileLayer, attribution } = this.config.map;
-
-    this.map = L.map('map').setView(initialView, initialZoom);
-    L.tileLayer(tileLayer, { attribution }).addTo(this.map);
-
-    // Create a custom icon using Lucide MapPin
-    this.createCustomIcon = (count) => {
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e40af" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-          <circle cx="12" cy="10" r="3"></circle>
-          ${count > 1 ? `<text x="12" y="10" text-anchor="middle" dy=".3em" fill="white" font-size="8" font-family="Arial">${count}</text>` : ''}
-        </svg>
-      `;
-
-      return L.divIcon({
-        html: svg,
-        className: 'custom-marker',
-        iconSize: [24, 24],
-        iconAnchor: [12, 24],
-        popupAnchor: [0, -24]
-      });
-    };
-    
-    // Initialize marker cluster group
-    this.markers = L.markerClusterGroup({
-      disableClusteringAtZoom: 15,
-      showCoverageOnHover: true,
-      zoomToBoundsOnClick: true,
-      spiderfyOnMaxZoom: true,
-      removeOutsideVisibleBounds: true,
-      iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
-        const svg = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r="18" fill="#1e40af" stroke="#ffffff" stroke-width="2"/>
-            <text x="20" y="20" text-anchor="middle" dy=".3em" fill="white" font-size="14" font-family="Arial">${count}</text>
-          </svg>
-        `;
-
-        return L.divIcon({
-          html: svg,
-          className: 'custom-cluster',
-          iconSize: [40, 40],
-          iconAnchor: [20, 20]
-        });
-      }
-    }).addTo(this.map);
-
-    // Add custom CSS
-    const style = document.createElement('style');
-    style.textContent = `
-      .custom-marker {
-        background: none;
-        border: none;
-      }
-      .custom-cluster {
-        background: none;
-        border: none;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  renderMarkers(items) {
-    // Clear previous markers
-    this.markers.clearLayers();
-
-    // Group items by coordinates
-    const locationGroups = {};
-    items.forEach(item => {
-      if (item.latitude && item.longitude) {
-        const key = `${parseFloat(item.latitude)},${parseFloat(item.longitude)}`;
-        const locName = item.Name
-        if (!locationGroups[key]) {
-          locationGroups[key] = {
-            name : locName, 
-            items: [],
-            coords: [parseFloat(item.latitude), parseFloat(item.longitude)]
-          };
-        }
-        locationGroups[key].items.push(item);
-      }
-    });
-
-    // Create markers for each location group
-    Object.values(locationGroups).forEach(group => {
-      const { name, items, coords } = group;
-      const count = items.length;
-
-      // Create popup content
-      const popupContent = `
-      <div class="max-h-60 overflow-y-auto p-2">
-        <h3 class="font-bold mb-2">${items.length} eventi</h3> 
-        <ul class="space-y-2">
-          ${items.map(item => `
-            <li class="border-b pb-2">
-              ${item.Name} (${item.Year}) <br>
-             Alpinisti: ${item.Alpinist} <br>
-              Guide: ${item.Guide}
-            </li>
-          `).join('')}
-        </ul>
-      </div>
-      `;
-
-      // Create marker with custom icon
-      const marker = L.marker(coords, {
-        icon: this.createCustomIcon(count)
-      }).bindPopup(popupContent);
-
-      this.markers.addLayer(marker);
-    });
   }
 
   bindEvents() {
