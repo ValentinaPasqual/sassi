@@ -1,0 +1,212 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Additional styles to match Fontshare design */
+
+/* Reset and base styles */
+*, *::before, *::after {
+    box-sizing: border-box;
+  }
+  
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    height: 100%;
+    color: #000000;
+  }
+  
+  /* Fixes for the broken layout */
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+  }
+  
+  /* Grid fixes */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  @media (min-width: 768px) {
+    .grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  
+  /* Card styling */
+  .card {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Section styling */
+  .section {
+    padding: 4rem 0;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+    font-weight: 400;
+    margin-bottom: 2rem;
+    color: #000;
+  }
+  
+  /* Fix for Flex layout */
+  .flex {
+    display: flex;
+  }
+  
+  .flex-col {
+    flex-direction: column;
+  }
+  
+  .min-h-screen {
+    min-height: 100vh;
+  }
+  
+  .flex-1 {
+    flex: 1 1 0%;
+  }
+  
+  /* Fix for sidebar positioning */
+  .fixed {
+    position: fixed;
+  }
+  
+  /* Counter styling for numbers in featured items */
+  .counter {
+    font-size: 2rem;
+    font-weight: 400;
+    color: #000;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Fixes for the number displays in the design */
+  .number-badge {
+    display: inline-block;
+    font-size: 1.25rem;
+    font-weight: 400;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Fix for map container */
+  .map-container {
+    width: 100%;
+    height: 400px;
+    background-color: #f8f8f8;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  /* Navigation bar fixes */
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+  }
+  
+  .nav-links a {
+    color: #000;
+    text-decoration: none;
+    font-weight: 400;
+  }
+  
+  /* Fix for right sidebar */
+  .right-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 240px;
+    height: 100vh;
+    background-color: white;
+    border-left: 1px solid #e0e0e0;
+    padding: 2rem 1rem;
+    overflow-y: auto;
+  }
+  
+  .sidebar-title {
+    font-size: 1.5rem;
+    font-weight: 400;
+    margin-bottom: 1.5rem;
+  }
+  
+  .sidebar-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .sidebar-links li {
+    margin-bottom: 1rem;
+  }
+  
+  .sidebar-links a {
+    color: #616161;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  
+  .sidebar-links a:hover {
+    color: #000;
+  }
+  
+  /* Main content area fix */
+  .main-content {
+    margin-right: 240px; /* Match the sidebar width */
+  }
+  
+  /* Fix for elements with numbers */
+  .element-count {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background-color: #f8f8f8;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Media queries for responsive layout */
+  @media (max-width: 768px) {
+    .right-sidebar {
+      width: 100%;
+      height: auto;
+      position: static;
+      border-left: none;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .main-content {
+      margin-right: 0;
+    }
+  }
+  
+  /* Z-index fixes */
+  .z-10 {
+    z-index: 10;
+  }
+  
+  .z-20 {
+    z-index: 20;
+  }

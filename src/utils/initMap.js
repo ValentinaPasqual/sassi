@@ -75,19 +75,50 @@ function initMap(config) {
 
       // Group items by coordinates
       const locationGroups = {};
+      
       items.forEach(item => {
-        if (item.latitude && item.longitude) {
-          const key = `${parseFloat(item.latitude)},${parseFloat(item.longitude)}`;
-          const locName = item.Name;
+        // Handle case where both lat_long and Spazi geografici might be arrays
+        const latLongs = Array.isArray(item.lat_long) ? item.lat_long : [item.lat_long];
+        const locationNames = Array.isArray(item["Spazi geografici"]) 
+          ? item["Spazi geografici"] 
+          : [item["Spazi geografici"] || "Unknown Location"];
+        
+        // Process each coordinate
+        latLongs.forEach((latLongEntry, index) => {
+          if (!latLongEntry) return; // Skip empty entries
+          
+          let coords;
+          
+          // If it's a string like "45.9027,7.6587"
+          if (typeof latLongEntry === 'string') {
+            coords = latLongEntry.split(',').map(coord => parseFloat(coord.trim()));
+          } else {
+            // Skip if coordinates are invalid
+            return;
+          }
+          
+          // Skip if we couldn't parse coordinates properly
+          if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+            console.error('Invalid coordinates:', latLongEntry);
+            return;
+          }
+          
+          const [latitude, longitude] = coords;
+          const key = `${latitude},${longitude}`;
+          
+          // Get corresponding location name (or use index if possible)
+          const locName = locationNames[index] || locationNames[0] || "Unknown Location";
+          
           if (!locationGroups[key]) {
             locationGroups[key] = {
               name: locName, 
               items: [],
-              coords: [parseFloat(item.latitude), parseFloat(item.longitude)]
+              coords: [latitude, longitude]
             };
           }
+          
           locationGroups[key].items.push(item);
-        }
+        });
       });
 
       // Create markers for each location group
@@ -98,13 +129,14 @@ function initMap(config) {
         // Create popup content
         const popupContent = `
         <div class="max-h-60 overflow-y-auto p-2">
-          <h3 class="font-bold mb-2">${items.length} eventi</h3> 
+          <h1>${name}</h1>
+          <h3 class="font-bold mb-2">${items.length} opere letterarie</h3> 
           <ul class="space-y-2">
             ${items.map(item => `
               <li class="border-b pb-2">
-                ${item.Name} (${item.Year}) <br>
-                Alpinisti: ${item.Alpinist} <br>
-                Guide: ${item.Guide}
+                ${item["Titolo"] || 'Unnamed'} (${item.Anno || 'Unknown Year'}) <br>
+                ${item.Alpinist ? `Alpinisti: ${item.Alpinist} <br>` : ''}
+                ${item.Guide ? `Guide: ${item.Guide}` : ''}
               </li>
             `).join('')}
           </ul>
@@ -118,6 +150,13 @@ function initMap(config) {
 
         markers.addLayer(marker);
       });
+      
+      // If no markers were added, log an error
+      if (Object.keys(locationGroups).length === 0) {
+        console.error('No valid coordinates found in the data');
+      } else {
+        console.log(`Added ${Object.keys(locationGroups).length} markers to the map`);
+      }
     };
 
     // Return the map and functions

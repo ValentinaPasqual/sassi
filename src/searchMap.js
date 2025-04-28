@@ -155,7 +155,7 @@ class LEDASearch {
     Object.entries(this.config.aggregations).forEach(([facetKey, facetConfig]) => {
         // Create facet group container
         const facetGroup = document.createElement('div');
-        facetGroup.className = 'facet-group mb-4';
+        facetGroup.className = 'facet-group mb-4 p-4 bg-white rounded-lg shadow';
         facetGroup.id = `${facetKey}-facet`;
 
         // Create title
@@ -641,20 +641,29 @@ updateChartHighlight(chartElement, buckets, startValue, endValue) {
       }
     });
 
+    // Update the map
+    // const coordinates = results.data.items
+    //   .filter(item => item.latitude && item.longitude)
+    //   .map(item => [item.latitude, item.longitude]);
 
+    // if (coordinates.length > 0) {
+    //   const bounds = L.latLngBounds(coordinates);
+    //   // this.map.fitBounds(bounds);
+    // }
 
     // Update the map
     const coordinates = results.data.items
-      .filter(item => item.latitude && item.longitude)
-      .map(item => [item.latitude, item.longitude]);
-
-    if (coordinates.length > 0) {
-      const bounds = L.latLngBounds(coordinates);
-      // this.map.fitBounds(bounds);
-    }
+    .filter(item => item.lat_long && item.lat_long.length > 0)
+    .map(item => {  
+      // Get the string from the array's first element
+      const coordString = item.lat_long[0];
+      const [latitude, longitude] = coordString.split(",");
+      return [parseFloat(latitude), parseFloat(longitude)];
+    });
 
     // Update markers and results
     this.renderMarkers(results.data.items);
+
     this.updateResultsList(results.data.items);
 
     // Update aggregations
@@ -667,22 +676,117 @@ updateChartHighlight(chartElement, buckets, startValue, endValue) {
     this.renderFacets(aggregations);
 }
 
-  updateResultsList(items) {
-    const resultsContainer = document.getElementById('results');
-    if (!resultsContainer) {
-      console.error('Results container not found');
-      return;
-    }
-
-    resultsContainer.innerHTML = items
-      .map((item) => `
-        <div class="p-4 bg-white rounded-lg shadow">
-          <h3 class="font-semibold">${item.Name}</h3>
-          <p>Data: ${item.Year}</p>
-        </div>
-      `)
-      .join('');
+// Method to focus the map on specific coordinates
+focusOnMap(lat, lng, zoom = 15) {
+  if (!this.map) {
+    console.error('Map not initialized');
+    return;
   }
+  
+  try {
+    // This is a Leaflet map, so we use setView
+    this.map.setView([parseFloat(lat), parseFloat(lng)], zoom);
+    console.log(`Map focused on coordinates: ${lat}, ${lng} with zoom level: ${zoom}`);
+  } catch (error) {
+    console.error('Error focusing map on coordinates:', error);
+    
+    // Debug information
+    console.log('Map object:', this.map);
+    console.log('Available methods:', Object.getOwnPropertyNames(this.map).filter(prop => typeof this.map[prop] === 'function'));
+  }
+}
+
+// Updated updateResultsList method
+updateResultsList(items) {
+  const resultsContainer = document.getElementById('results');
+  if (!resultsContainer) {
+    console.error('Results container not found');
+    return;
+  }
+
+  resultsContainer.innerHTML = items
+  .map((item) => {
+    // If Spazi geografici is an array, use it directly
+    const spaces = Array.isArray(item["Spazi geografici"]) ? item["Spazi geografici"] : [];
+    
+    // Get coordinates from the item
+    
+    // Create space buttons with actual coordinates when available
+    const spacesButtons = spaces.map((space, index) => {
+      let coordinates = [];
+      if (Array.isArray(item.lat_long) && item.lat_long.length > 0) {
+        const coordString = item.lat_long[index];
+        if (coordString && typeof coordString === 'string') {
+          const parts = coordString.split(',');
+          if (parts.length === 2) {
+            coordinates = [parts[0].trim(), parts[1].trim()];
+          }
+        }
+      }
+
+      const lat = coordinates[0] ;
+      const lng = coordinates[1] 
+      
+      if (lat && lng) {
+        return `
+        <button class="focus-map-btn mr-2 px-2 py-1 text-sm bg-gray-100 rounded" 
+                data-space="${encodeURIComponent(space)}" 
+                data-lat="${lat}" 
+                data-lng="${lng}">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4 inline mr-1">
+            <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+          </svg>
+          ${space}
+        </button>
+      `;
+    }
+    else {
+      return `
+        <button class="focus-map-btn mr-2 px-2 py-1 text-sm bg-gray-100 rounded" 
+                data-space="${encodeURIComponent(space)}" >
+          ${space}
+        </button>
+      `;
+    }
+    }).join('');
+
+    return `
+      <div class="p-4 bg-white rounded-lg shadow">
+        <h3 class="font-semibold flex items-center">${item.Titolo}, ${item.Autore} (${item.Anno})
+          <a href="../pages/record.html?scheda=${encodeURIComponent(item.Titolo)}">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </a>
+        </h3>
+        <div class="mt-2">
+          <div class="flex flex-wrap items-center">
+            ${spacesButtons}
+          </div>
+        </div>
+      </div>
+    `;
+  })
+  .join('');
+
+  // Store a reference to the current instance
+  const self = this;
+  
+  // Add event listeners to the buttons
+  document.querySelectorAll('.focus-map-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const lat = this.getAttribute('data-lat');
+      const lng = this.getAttribute('data-lng');
+      
+      if (lat && lng) {
+        // Call the new focusOnMap method
+        self.focusOnMap(lat, lng, 8);
+      } else {
+        console.warn('Coordinate non disponibili per questa opera');
+      }
+    });
+  });
+}
 
   debounce(func, delay) {
     let timer;
