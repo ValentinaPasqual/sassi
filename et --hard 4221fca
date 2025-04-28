@@ -1,0 +1,77 @@
+[33m3960fda[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m HEAD@{0}: reset: moving to HEAD~1
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{1}: checkout: moving from main to main
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{2}: checkout: moving from gh-pages-b0d98b2 to main
+[33mba73143[m[33m ([m[1;31morigin/gh-pages[m[33m)[m HEAD@{3}: commit (initial): b0d98b2
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{4}: checkout: moving from main to main
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{5}: reset: moving to HEAD
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{6}: checkout: moving from gh-pages-b0d98b2 to main
+[33m4221fca[m HEAD@{7}: commit: check
+[33m079146c[m HEAD@{8}: commit: change vite name
+[33m11d6d65[m HEAD@{9}: commit: first upload
+[33m47d40f4[m HEAD@{10}: checkout: moving from gh-pages-47d40f4 to gh-pages-b0d98b2
+[33m82df213[m HEAD@{11}: commit (initial): 47d40f4
+[33m47d40f4[m HEAD@{12}: commit: deploy narratives
+[33m4a80ebe[m HEAD@{13}: checkout: moving from gh-pages-4a80ebe to gh-pages-b0d98b2
+[33m22f36fa[m HEAD@{14}: commit (initial): 4a80ebe
+[33m4a80ebe[m HEAD@{15}: commit: deploy storytelling
+[33mba9ee0d[m HEAD@{16}: commit: added dynamic storytelling sec
+[33mf696ae4[m HEAD@{17}: checkout: moving from gh-pages-f696ae4 to gh-pages-b0d98b2
+[33mb3ebf9e[m HEAD@{18}: commit (initial): f696ae4
+[33mf696ae4[m HEAD@{19}: commit: index update
+[33m7331972[m HEAD@{20}: checkout: moving from gh-pages-7331972 to gh-pages-b0d98b2
+[33m1c3245d[m HEAD@{21}: commit (initial): 7331972
+[33m7331972[m HEAD@{22}: commit: deploy test
+[33m7137584[m HEAD@{23}: checkout: moving from gh-pages-7137584 to gh-pages-b0d98b2
+[33m7c6ab2a[m HEAD@{24}: commit (initial): 7137584
+[33m7137584[m HEAD@{25}: commit: deploy test
+[33mfdedfbc[m HEAD@{26}: checkout: moving from gh-pages-fdedfbc to gh-pages-b0d98b2
+[33m1fca52b[m HEAD@{27}: commit (initial): fdedfbc
+[33mfdedfbc[m HEAD@{28}: commit: deploy test
+[33m6131f11[m HEAD@{29}: commit: deploy test
+[33m50f7476[m HEAD@{30}: checkout: moving from gh-pages-50f7476 to gh-pages-b0d98b2
+[33maa6983d[m HEAD@{31}: commit (initial): 50f7476
+[33m50f7476[m HEAD@{32}: commit: deploy test
+[33m4f487b0[m HEAD@{33}: checkout: moving from gh-pages-4f487b0 to gh-pages-b0d98b2
+[33mbbcd694[m HEAD@{34}: commit (initial): 4f487b0
+[33m4f487b0[m HEAD@{35}: commit: deploy test
+[33mbc17991[m HEAD@{36}: checkout: moving from gh-pages-bc17991 to gh-pages-b0d98b2
+[33me76b1ca[m HEAD@{37}: commit (initial): bc17991
+[33mbc17991[m HEAD@{38}: commit: deploy test
+[33mabe0842[m HEAD@{39}: commit (initial): b0d98b2
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{40}: checkout: moving from gh-pages-b0d98b2 to main
+[33mfc01891[m HEAD@{41}: commit (initial): b0d98b2
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{42}: checkout: moving from main to main
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{43}: checkout: moving from gh-pages-b0d98b2 to main
+[33m2513afa[m HEAD@{44}: commit (initial): b0d98b2
+[33mb0d98b2[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{45}: commit: deploy test
+[33m3960fda[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m HEAD@{46}: commit: deploy
+[33mab48b14[m HEAD@{47}: checkout: moving from gh-pages-ab48b14 to main
+[33mdd2af2e[m HEAD@{48}: commit (initial): ab48b14
+[33mab48b14[m HEAD@{49}: commit: add books desc
+[33m4584b1d[m HEAD@{50}: checkout: moving from gh-pages-4584b1d to main
+[33m8a1d938[m HEAD@{51}: commit (initial): 4584b1d
+[33m4584b1d[m HEAD@{52}: commit: add markercluster
+[33m093169f[m HEAD@{53}: checkout: moving from gh-pages-093169f to main
+[33m6b700e4[m HEAD@{54}: commit (initial): 093169f
+[33m093169f[m HEAD@{55}: commit: simple map deploy test
+[33mb4690cd[m HEAD@{56}: checkout: moving from gh-pages-b4690cd to main
+[33m9716515[m HEAD@{57}: commit (initial): b4690cd
+[33mb4690cd[m HEAD@{58}: commit: add imports fix
+[33m781a0fd[m HEAD@{59}: checkout: moving from gh-pages to main
+[33m1187dce[m HEAD@{60}: checkout: moving from main to gh-pages
+[33m781a0fd[m HEAD@{61}: commit: update imports in main.js
+[33m4834510[m HEAD@{62}: checkout: moving from main to main
+[33m4834510[m HEAD@{63}: checkout: moving from gh-pages to main
+[33m1187dce[m HEAD@{64}: checkout: moving from main to gh-pages
+[33m4834510[m HEAD@{65}: checkout: moving from gh-pages-4834510 to main
+[33m1187dce[m HEAD@{66}: commit (initial): 4834510
+[33m4834510[m HEAD@{67}: commit: deployment test-3
+[33m50ea1e4[m HEAD@{68}: checkout: moving from gh-pages-50ea1e4 to main
+[33m74de6a4[m HEAD@{69}: commit (initial): 50ea1e4
+[33m50ea1e4[m HEAD@{70}: commit: deployment test
+[33m432c2ed[m HEAD@{71}: commit: deploy test
+[33me355e0d[m HEAD@{72}: checkout: moving from gh-pages-e355e0d to main
+[33maa9b75b[m HEAD@{73}: commit (initial): e355e0d
+[33me355e0d[m HEAD@{74}: commit: deploy test
+[33mc572c98[m HEAD@{75}: commit: update map style
+[33m79a082e[m HEAD@{76}: clone: from https://github.com/ValentinaPasqual/leda.git
