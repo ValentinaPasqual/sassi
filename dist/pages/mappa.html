@@ -10,96 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <link rel="icon" href="data:;base64,=" />
-    <style>
-        #map { 
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
-        }
-        .facet-options {
-            overflow: auto;
-            max-height: 10rem;
-        }
-        .overlay-panel {
-            background-color: rgba(255, 255, 255, 0.95);
-            -webkit-backdrop-filter: blur(5px);
-                    backdrop-filter: blur(5px);
-            transition: transform 0.3s ease-in-out;
-        }
-        .panel-closed {
-            transform: translateX(-100%);
-        }
-        .panel-closed-right {
-            transform: translateX(100%);
-        }
-        .facet-options {overflow: scroll; max-height: 10rem;}
-        
-        /* Bottom navbar styles */
-        .bottom-navbar {
-            background: rgba(255, 255, 255, 0.95);
-            -webkit-backdrop-filter: blur(10px);
-                    backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(229, 231, 235, 0.5);
-        }
-        
-        .nav-button {
-            transition: all 0.2s ease-in-out;
-        }
-        
-        .nav-button:hover {
-            transform: translateY(-2px);
-        }
-        
-        .nav-button.active {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-        
-        .nav-button.active i {
-            transform: scale(1.1);
-        }
-        
-        .results-counter {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            animation: pulse 2s infinite;
-        }
-        
-        .map-legend {
-            background: rgba(255, 255, 255, 0.95);
-            -webkit-backdrop-filter: blur(10px);
-                    backdrop-filter: blur(10px);
-            border: 1px solid rgba(229, 231, 235, 0.5);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            max-height: 80vh;
-            overflow-y: auto;
-            transition: all 0.3s ease-in-out;
-        }
-        
-        .legend-hidden {
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(20px) scale(0.95);
-        }
-        
-        .legend-item {
-            transition: all 0.2s ease-in-out;
-        }
-        
-        .legend-item:hover {
-            background-color: rgba(59, 130, 246, 0.05);
-            transform: translateX(4px);
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-    </style>
   <script type="module" crossorigin src="/leda/assets/js/mappa.js"></script>
   <link rel="modulepreload" crossorigin href="/leda/assets/js/modulepreload-polyfill-B5Qt9EMX.js">
   <link rel="modulepreload" crossorigin href="/leda/assets/js/dataParser-DPL0y_Ss.js">
@@ -115,7 +25,6 @@
 
     <!-- Filters Panel -->
     <div id="filters-panel" class="overlay-panel panel-closed fixed top-0 left-0 w-80 h-full z-10 p-4 shadow-lg overflow-auto">
-        <h2 class="text-xl font-semibold mb-4">Filtri</h2>
     
         <!-- Dynamic facets container -->
         <div id="facets-container">
@@ -133,27 +42,26 @@
     <!-- Results Panel -->
     <div id="results-panel" class="overlay-panel panel-closed-right fixed top-0 right-0 w-80 h-full z-10 p-4 shadow-lg overflow-auto">
         
-        <h2 class="text-xl font-semibold mb-4">Indice delle Opere di riferimento</h2>
+        <div class="results-container">
+            <div class="search-sort-container">
+                <!-- Search Input -->
+                <div class="mb-4">
+                    <input type="text" id="search-input" 
+                        class="w-full p-2 border rounded" 
+                        placeholder="Cerca...">
+                </div>
 
-        <!-- Search Input -->
-        <div class="mb-4">
-            <input type="text" id="search-input" 
-                   class="w-full p-2 border rounded" 
-                   placeholder="Search...">
-        </div>
-
-        <!-- Sort -->
-        <div class="mb-4">
-            <select id="sort-select" class="w-full p-2 border rounded-lg">
-                <!-- Sort options will be populated by JavaScript -->
-            </select>
-        </div>
-
-        <!-- Selected facets container -->
-        <div id="selected-facets-container"></div>
-        
-        <div id="results" class="space-y-4">
-            <!-- Results will be populated by JavaScript -->
+                <!-- Sort -->
+                <div class="mb-4">
+                        <select id="sort-select" class="w-full p-2 border rounded-lg">
+                            <!-- Sort options will be populated by JavaScript -->
+                        </select>
+                </div>
+            </div>
+                
+            <div id="results" class="space-y-4">
+                <!-- Results will be populated by JavaScript -->
+            </div>
         </div>
     </div>
 
@@ -190,18 +98,17 @@
                 </button>
                 
                 <!-- Active filters indicator -->
-                <div id="active-filters-badge" class="hidden bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
+                <div id="active-filters-badge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
                     <span id="active-filters-count"></span> attivi
                 </div>
+                <button id="clear-all-btn" class="hidden nav-button px-3 py-2">
+                    <i class="fas fa-times mr-1"></i>
+                    Cancella tutto
+                </button>
             </div>
 
             <!-- Center section - Quick actions -->
             <div class="flex items-center space-x-2">
-                <button id="clear-all-btn" class="hidden nav-button px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100">
-                    <i class="fas fa-times mr-1"></i>
-                    Cancella tutto
-                </button>
-                
                 <button id="toggle-legend-btn" class="nav-button px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100">
                     <i class="fas fa-map-signs mr-1"></i>
                     Legenda
@@ -209,19 +116,19 @@
                 
                 <button id="map-center-btn" class="nav-button px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100">
                     <i class="fas fa-crosshairs mr-1"></i>
-                    Centra mappa
+                    Livelli Mappa
                 </button>
             </div>
 
             <!-- Right section - Results -->
             <div class="flex items-center space-x-3">
                 <!-- Results counter -->
-                <div id="results-counter" class="results-counter hidden text-white text-xs font-bold px-3 py-1 rounded-full">
+                <div id="results-counter" class="results-counter text-white text-xs font-bold px-3 py-1 rounded-full">
                     <span id="results-count">0</span> risultati
                 </div>
                 
                 <button id="toggle-results" class="nav-button flex items-center space-x-2 px-4 py-2 rounded-full shadow-lg hover:shadow-xl">
-                    <span class="font-medium">Risultati</span>
+                    <span class="font-medium">Opere</span>
                     <i class="fas fa-list text-lg"></i>
                 </button>
             </div>
