@@ -10,32 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <link rel="icon" href="data:;base64,=" />
-    <style>
-        #map { 
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
-        }
-        .facet-options {
-            overflow: auto;
-            max-height: 10rem;
-        }
-        .overlay-panel {
-            background-color: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
-            transition: transform 0.3s ease-in-out;
-        }
-        .panel-closed {
-            transform: translateX(-100%);
-        }
-        .panel-closed-right {
-            transform: translateX(100%);
-        }
-        .facet-options {overflow: scroll; max-height: 10rem;}
-    </style>
 </head>
 <body class="overflow-hidden">
 
@@ -43,21 +17,8 @@
         <div class="loader"></div>
     </div>
 
-    <!-- Toggle buttons for panels -->
-    <div class="fixed top-4 left-4 z-20">
-        <button id="toggle-filters" class="bg-white p-2 rounded-lg shadow hover:bg-gray-100">
-            <i class="fas fa-filter"></i>
-        </button>
-    </div>
-    <div class="fixed top-4 right-4 z-20">
-        <button id="toggle-results" class="bg-white p-2 rounded-lg shadow hover:bg-gray-100">
-            <i class="fas fa-list"></i>
-        </button>
-    </div>
-
     <!-- Filters Panel -->
-    <div id="filters-panel" class="overlay-panel fixed top-0 left-0 w-80 h-full z-10 p-4 shadow-lg overflow-auto">
-        <h2 class="text-xl font-semibold mb-4">Filtri</h2>
+    <div id="filters-panel" class="overlay-panel panel-closed fixed top-0 left-0 w-80 h-full z-10 p-4 shadow-lg overflow-auto">
     
         <!-- Dynamic facets container -->
         <div id="facets-container">
@@ -73,55 +34,104 @@
     </div>
 
     <!-- Results Panel -->
-    <div id="results-panel" class="overlay-panel fixed top-0 right-0 w-80 h-full z-10 p-4 shadow-lg overflow-auto">
+    <div id="results-panel" class="overlay-panel panel-closed-right fixed top-0 right-0 w-80 h-full z-10 p-4 shadow-lg overflow-auto">
         
-        <h2 class="text-xl font-semibold mb-4">Opere letterarie</h2>
+        <div class="results-container">
+            <div class="search-sort-container">
+                <!-- Search Input -->
+                <div class="mb-4">
+                    <input type="text" id="search-input" 
+                        class="w-full p-2 border rounded" 
+                        placeholder="Cerca...">
+                </div>
 
-        <!-- Search Input -->
-        <div class="mb-4">
-            <input type="text" id="search-input" 
-                   class="w-full p-2 border rounded" 
-                   placeholder="Search...">
-        </div>
-
-        <!-- Sort -->
-        <div class="mb-4">
-            <select id="sort-select" class="w-full p-2 border rounded-lg">
-                <!-- Sort options will be populated by JavaScript -->
-            </select>
-        </div>
-        
-        <div id="results" class="space-y-4">
-            <!-- Results will be populated by JavaScript -->
+                <!-- Sort -->
+                <div class="mb-4">
+                        <select id="sort-select" class="w-full p-2 border rounded-lg">
+                            <!-- Sort options will be populated by JavaScript -->
+                        </select>
+                </div>
+            </div>
+                
+            <div id="results" class="space-y-4">
+                <!-- Results will be populated by JavaScript -->
+            </div>
         </div>
     </div>
 
     <!-- Map -->
     <div id="map"></div>
 
+    <!-- Map Legend -->
+    <div id="map-legend" class="map-legend legend-hidden fixed bottom-20 left-4 z-15 p-4 w-64">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800">Leggenda</h3>
+            <button id="close-legend-btn" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="map-legend-content space-y-2">
+            <!-- Legend items will be populated by JavaScript -->
+            <div class="legend-item flex items-center p-2 rounded-lg">
+                <div class="w-4 h-4 bg-blue-500 rounded-full mr-3 flex-shrink-0"></div>
+                <span class="text-sm text-gray-700">Caricamento legenda...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-navbar fixed bottom-0 left-0 right-0 z-20 px-4 py-3">
+        <div class="flex items-center justify-between max-w-screen-xl mx-auto">
+            
+            <!-- Left section - Filters -->
+            <div class="flex items-center space-x-3">
+                <button id="toggle-filters" class="nav-button flex items-center space-x-2 px-4 py-2 rounded-full shadow-lg hover:shadow-xl">
+                    <i class="fas fa-filter text-lg"></i>
+                    <span class="font-medium">Filtri</span>
+                </button>
+                
+                <!-- Active filters indicator -->
+                <div id="active-filters-badge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
+                    <span id="active-filters-count"></span> attivi
+                </div>
+                <button id="clear-all-btn" class="hidden nav-button px-3 py-2">
+                    <i class="fas fa-times mr-1"></i>
+                    Cancella tutto
+                </button>
+            </div>
+
+            <!-- Center section - Quick actions -->
+            <div class="flex items-center space-x-2">
+                <button id="toggle-legend-btn" class="nav-button px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100">
+                    <i class="fas fa-map-signs mr-1"></i>
+                    Legenda
+                </button>
+                
+                <button id="map-center-btn" class="nav-button px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100">
+                    <i class="fas fa-crosshairs mr-1"></i>
+                    Livelli Mappa
+                </button>
+            </div>
+
+            <!-- Right section - Results -->
+            <div class="flex items-center space-x-3">
+                <!-- Results counter -->
+                <div id="results-counter" class="results-counter text-white text-xs font-bold px-3 py-1 rounded-full">
+                    <span id="results-count">0</span> risultati
+                </div>
+                
+                <button id="toggle-results" class="nav-button flex items-center space-x-2 px-4 py-2 rounded-full shadow-lg hover:shadow-xl">
+                    <span class="font-medium">Opere</span>
+                    <i class="fas fa-list text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
     <script type="module">
         import '/src/searchMap.js'; 
     </script>
       
-    <!-- <script type="module" src="/leda/src/index.js"></script> -->
-    <script>
-        // Panel toggle functionality
-        const filtersPanel = document.getElementById('filters-panel');
-        const resultsPanel = document.getElementById('results-panel');
-        const toggleFilters = document.getElementById('toggle-filters');
-        const toggleResults = document.getElementById('toggle-results');
-
-        toggleFilters.addEventListener('click', () => {
-            filtersPanel.classList.toggle('panel-closed');
-        });
-
-        toggleResults.addEventListener('click', () => {
-            resultsPanel.classList.toggle('panel-closed-right');
-        });
-
-        // Initialize panels as visible
-        filtersPanel.classList.remove('panel-closed');
-        resultsPanel.classList.remove('panel-closed-right');
-    </script>
 </body>
 </html>

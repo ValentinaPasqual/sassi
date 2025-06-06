@@ -68,96 +68,78 @@ function initMap(config) {
     `;
     document.head.appendChild(style);
 
-    // Function to render markers
-    const renderMarkers = (items) => {
-      // Clear previous markers
-      markers.clearLayers();
+// Function to render markers
+const renderMarkers = (items) => {
+  // Clear previous markers
+  markers.clearLayers();
 
-      // Group items by coordinates
-      const locationGroups = {};
-      
-      items.forEach(item => {
-        // Handle case where both lat_long and Spazi geografici might be arrays
-        const latLongs = Array.isArray(item.lat_long) ? item.lat_long : [item.lat_long];
-        const locationNames = Array.isArray(item["Spazi geografici"]) 
-          ? item["Spazi geografici"] 
-          : [item["Spazi geografici"] || "Unknown Location"];
-        
-        // Process each coordinate
-        latLongs.forEach((latLongEntry, index) => {
-          if (!latLongEntry) return; // Skip empty entries
-          
-          let coords;
-          
-          // If it's a string like "45.9027,7.6587"
-          if (typeof latLongEntry === 'string') {
-            coords = latLongEntry.split(',').map(coord => parseFloat(coord.trim()));
-          } else {
-            // Skip if coordinates are invalid
-            return;
-          }
-          
-          // Skip if we couldn't parse coordinates properly
-          if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
-            console.error('Invalid coordinates:', latLongEntry);
-            return;
-          }
-          
-          const [latitude, longitude] = coords;
-          const key = `${latitude},${longitude}`;
-          
-          // Get corresponding location name (or use index if possible)
-          const locName = locationNames[index] || locationNames[0] || "Unknown Location";
-          
-          if (!locationGroups[key]) {
-            locationGroups[key] = {
-              name: locName, 
-              items: [],
-              coords: [latitude, longitude]
-            };
-          }
-          
-          locationGroups[key].items.push(item);
-        });
-      });
+  // Group items by coordinates
+  const locationGroups = {};
+  
+  items.forEach(item => {    
+    // Skip items without coordinates
+    if (!item.lat_long) return;
+    
+    // Parse coordinates from string like "45.9027,7.6587"
+    const coords = item.lat_long.split(',').map(coord => parseFloat(coord.trim()));
+    
+    // Skip if we couldn't parse coordinates properly
+    if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+      console.error('Invalid coordinates:', item.lat_long);
+      return;
+    }
+    
+    const [latitude, longitude] = coords;
+    const key = `${latitude},${longitude}`;
+    const locationName = item["Spazi geografici"] || "Unknown Location";
+    
+    if (!locationGroups[key]) {
+      locationGroups[key] = {
+        name: locationName, 
+        items: [],
+        coords: [latitude, longitude]
+      };
+    }
+    
+    locationGroups[key].items.push(item);
+  });
 
-      // Create markers for each location group
-      Object.values(locationGroups).forEach(group => {
-        const { name, items, coords } = group;
-        const count = items.length;
+  // Create markers for each location group
+  Object.values(locationGroups).forEach(group => {
+    const { name, items, coords } = group;
 
-        // Create popup content
-        const popupContent = `
-        <div class="max-h-60 overflow-y-auto p-2">
-          <h1>${name}</h1>
-          <h3 class="font-bold mb-2">${items.length} opere letterarie</h3> 
-          <ul class="space-y-2">
-            ${items.map(item => `
-              <li class="border-b pb-2">
-                ${item["Titolo"] || 'Unnamed'} (${item.Anno || 'Unknown Year'}) <br>
-                ${item.Alpinist ? `Alpinisti: ${item.Alpinist} <br>` : ''}
-                ${item.Guide ? `Guide: ${item.Guide}` : ''}
-              </li>
-            `).join('')}
-          </ul>
-        </div>
-        `;
+    // Create popup content
+    const popupContent = `
+    <div class="max-h-60 overflow-y-auto p-2">
+      <h1>${name}</h1>
+      <h3 class="font-bold mb-2">${items.length} opere letterarie</h3> 
+      <ul class="space-y-2">
+        ${items.map(item => `
+          <li class="border-b pb-2">
+            ${item["Titolo"] || 'Unnamed'} (${item.Anno || 'Unknown Year'}) <br>
+            ${item.Alpinist ? `Alpinisti: ${item.Alpinist} <br>` : ''}
+            ${item.Guide ? `Guide: ${item.Guide}` : ''}
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+    `;
 
-        // Create marker with custom icon
-        const marker = L.marker(coords, {
-          icon: createCustomIcon(count)
-        }).bindPopup(popupContent);
+    // Create marker with custom icon
+    const marker = L.marker(coords, {
+      icon: createCustomIcon(items.length)
+    }).bindPopup(popupContent);
 
-        markers.addLayer(marker);
-      });
-      
-      // If no markers were added, log an error
-      if (Object.keys(locationGroups).length === 0) {
-        console.error('No valid coordinates found in the data');
-      } else {
-        console.log(`Added ${Object.keys(locationGroups).length} markers to the map`);
-      }
-    };
+    markers.addLayer(marker);
+  });
+  
+  // If no markers were added, log an error
+  if (Object.keys(locationGroups).length === 0) {
+    console.error('No valid coordinates found in the data');
+  } else {
+    console.log(`Added ${Object.keys(locationGroups).length} markers to the map`);
+  }
+};
 
     // Return the map and functions
     return {
