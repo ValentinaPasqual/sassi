@@ -92,8 +92,21 @@ export class SearchHandler {
       
       // Check if any of the selected paths match the item's taxonomy
       const itemValue = item[field];
+      
+      // Handle different data types for itemValue
+      let itemValueStr;
+      if (Array.isArray(itemValue)) {
+        // If it's an array, join with comma or take first element
+        itemValueStr = itemValue.length > 0 ? String(itemValue[0]) : '';
+      } else if (typeof itemValue === 'string') {
+        itemValueStr = itemValue;
+      } else {
+        // Convert to string for other types (null, undefined, objects, etc.)
+        itemValueStr = String(itemValue || '');
+      }
+      
       const matches = paths.some(path => {
-        return itemValue === path || itemValue.startsWith(path + ' > ');
+        return itemValueStr === path || itemValueStr.startsWith(path + ' > ');
       });
       
       if (!matches) return false;

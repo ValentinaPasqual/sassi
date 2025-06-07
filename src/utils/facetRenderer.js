@@ -1,73 +1,76 @@
 // facetRenderer.js
+import { TaxonomyRenderer } from './taxonomyRenderer.js';
+
 export class FacetRenderer {
   constructor(config) {
     this.config = config;
+    this.taxonomyRenderer = new TaxonomyRenderer(); // Add this line
   }
 
   renderFacets(aggregations, state, onStateChange) {
-  if (!aggregations || !this.config.aggregations) {
-    console.error('No aggregations data or configuration available.');
-    return;
-  }
-
-  const facetsContainer = document.getElementById('facets-container');
-
-  // Store current checked state before clearing
-  const checkedState = this._getCheckedState();
-
-  // Clear existing facets
-  facetsContainer.innerHTML = '';
-
-  // Group facets by category
-  const categorizedFacets = {};
-
-  Object.entries(this.config.aggregations).forEach(([facetKey, facetConfig]) => {
-    const category = facetConfig.category || 'Other'; // Default category if none specified
-    
-    if (!categorizedFacets[category]) {
-      categorizedFacets[category] = [];
+    if (!aggregations || !this.config.aggregations) {
+      console.error('No aggregations data or configuration available.');
+      return;
     }
-    
-    categorizedFacets[category].push({ facetKey, facetConfig });
-  });
 
-  // Create category divs and render facets within them
-  Object.entries(categorizedFacets).forEach(([categoryName, facets]) => {
-    // Create category container
-    const categoryDiv = document.createElement('div');
-    categoryDiv.className = 'facet-category';
-    categoryDiv.setAttribute('data-category', categoryName);
-    
-    // Create category title
-    const categoryTitle = document.createElement('h3');
-    categoryTitle.className = 'facet-category-title';
-    categoryTitle.textContent = categoryName;
-    categoryDiv.appendChild(categoryTitle);
-    
-    // Create container for facets within this category
-    const categoryFacetsContainer = document.createElement('div');
-    categoryFacetsContainer.className = 'facet-category-content';
-    
-    // Render each facet in this category
-    facets.forEach(({ facetKey, facetConfig }) => {
-      const facetGroup = this._createFacetGroup(facetKey, facetConfig);
+    const facetsContainer = document.getElementById('facets-container');
+
+    // Store current checked state before clearing
+    const checkedState = this._getCheckedState();
+
+    // Clear existing facets
+    facetsContainer.innerHTML = '';
+
+    // Group facets by category
+    const categorizedFacets = {};
+
+    Object.entries(this.config.aggregations).forEach(([facetKey, facetConfig]) => {
+      const category = facetConfig.category || 'Other'; // Default category if none specified
       
-      if (facetConfig.type === 'range') {
-        this._renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange);
-      } else if (facetConfig.type === 'taxonomy') {
-        this._renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState);
-      } else {
-        this._renderStandardFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState);
+      if (!categorizedFacets[category]) {
+        categorizedFacets[category] = [];
       }
       
-      categoryFacetsContainer.appendChild(facetGroup);
+      categorizedFacets[category].push({ facetKey, facetConfig });
     });
-    
-    categoryDiv.appendChild(categoryFacetsContainer);
-    facetsContainer.appendChild(categoryDiv);
-  });
 
-  this._addFacetEventListeners(onStateChange);
+    // Create category divs and render facets within them
+    Object.entries(categorizedFacets).forEach(([categoryName, facets]) => {
+      // Create category container
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'facet-category';
+      categoryDiv.setAttribute('data-category', categoryName);
+      
+      // Create category title
+      const categoryTitle = document.createElement('h3');
+      categoryTitle.className = 'facet-category-title';
+      categoryTitle.textContent = categoryName;
+      categoryDiv.appendChild(categoryTitle);
+      
+      // Create container for facets within this category
+      const categoryFacetsContainer = document.createElement('div');
+      categoryFacetsContainer.className = 'facet-category-content';
+      
+      // Render each facet in this category
+      facets.forEach(({ facetKey, facetConfig }) => {
+        const facetGroup = this._createFacetGroup(facetKey, facetConfig);
+        
+        if (facetConfig.type === 'range') {
+          this._renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange);
+        } else if (facetConfig.type === 'taxonomy') {
+          this._renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, onStateChange);
+        } else {
+          this._renderStandardFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState);
+        }
+        
+        categoryFacetsContainer.appendChild(facetGroup);
+      });
+      
+      categoryDiv.appendChild(categoryFacetsContainer);
+      facetsContainer.appendChild(categoryDiv);
+    });
+
+    this._addFacetEventListeners(onStateChange);
   }
 
   _getCheckedState() {
@@ -94,7 +97,7 @@ export class FacetRenderer {
     return facetGroup;
   }
 
- _renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange) {
+  _renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange) {
     const sliderContainer = document.createElement('div');
     sliderContainer.className = 'facet-slider my-4';
 
@@ -222,135 +225,36 @@ export class FacetRenderer {
     this._updateChartHighlight(chartElement, buckets, startValue, endValue);
   }
 
-_renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState) {
-    const taxonomyContainer = document.createElement('div');
-    taxonomyContainer.className = 'taxonomy-container';
-  
-    // Build hierarchical structure
-    const hierarchy = {};
-    const facetData = aggregations[facetKey] || [];
-    
-    // First pass: create the hierarchy
-    facetData.forEach(bucket => {
-      const parts = bucket.key.split(' > ');
-      let currentLevel = hierarchy;
-      
-      parts.forEach((part, index) => {
-        if (!currentLevel[part]) {
-          currentLevel[part] = {
-            children: {},
-            docCount: 0,
-            selfCount: 0
-          };
-        }
-        if (index === parts.length - 1) {
-          currentLevel[part].selfCount = bucket.doc_count;
-        }
-        currentLevel = currentLevel[part].children;
+_renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, onStateChange) {
+  // Create container for the taxonomy
+  const taxonomyContainer = document.createElement('div');
+
+  // Get facet data (e.g., hierarchy of terms)
+  const facetData = aggregations[facetKey] || [];
+
+  // Render the taxonomy into the container
+  this.taxonomyRenderer.renderTaxonomy(taxonomyContainer, facetData, facetKey, checkedState);
+
+  // Listen for custom 'taxonomyChange' events dispatched by taxonomyRenderer
+  taxonomyContainer.addEventListener('taxonomyChange', (e) => {
+    const { facetKey, allAffectedPaths, action } = e.detail;
+
+    // Notify the main application state handler of each affected path
+    allAffectedPaths.forEach((path) => {
+      onStateChange({
+        type: 'FACET_CHANGE',
+        facetType: facetKey,
+        value: path,
+        checked: action === 'add'
       });
     });
-  
-    // Second pass: calculate parent counts by summing children
-    function calculateTotalCounts(node) {
-      let totalCount = node.selfCount || 0;
-      
-      Object.values(node.children).forEach(child => {
-        totalCount += calculateTotalCounts(child);
-      });
-      
-      node.docCount = totalCount;
-      return totalCount;
-    }
-  
-    // Calculate counts for all root nodes
-    Object.values(hierarchy).forEach(node => {
-      calculateTotalCounts(node);
-    });
-  
-    // Rest of the rendering code remains the same
-    function createTaxonomyHTML(node, path = [], level = 0) {
-      let html = '<ul class="taxonomy-list" style="margin-left: ' + (level * 20) + 'px;">';
-      
-      Object.entries(node).forEach(([key, value]) => {
-        if (key === 'children' || key === 'docCount' || key === 'selfCount') return;
-        
-        const currentPath = [...path, key];
-        const fullPath = currentPath.join(' > ');
-        const hasChildren = Object.keys(value.children).length > 0;
-        
-        html += `
-          <li class="taxonomy-item">
-            <div class="taxonomy-row">
-              ${hasChildren ? 
-                `<span class="toggle-btn" data-path="${fullPath}">▶</span>` : 
-                '<span class="toggle-placeholder"></span>'}
-              <label>
-                <input type="checkbox" 
-                       value="${fullPath}" 
-                       data-facet-type="${facetKey}"
-                       ${checkedState[facetKey]?.includes(fullPath) ? 'checked' : ''}>
-                <span>${key} (${value.docCount})</span>
-              </label>
-            </div>
-            ${hasChildren ? 
-              `<div class="children" data-parent="${fullPath}" style="display: none;">
-                ${createTaxonomyHTML(value.children, currentPath, level + 1)}
-              </div>` : 
-              ''}
-          </li>
-        `;
-      });
-      
-      return html + '</ul>';
-    }
+  });
 
-    // Add CSS styles
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `
-      .taxonomy-list {
-        list-style: none;
-        padding: 0;
-      }
-      .taxonomy-item {
-        margin: 5px 0;
-      }
-      .taxonomy-row {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-      }
-      .toggle-btn {
-        cursor: pointer;
-        width: 20px;
-        user-select: none;
-      }
-      .toggle-placeholder {
-        width: 20px;
-      }
-      .children {
-        margin-left: 20px;
-      }
-    `;
-    document.head.appendChild(styleElement);
+  // Append the taxonomy UI to the DOM
+  facetGroup.appendChild(taxonomyContainer);
+}
 
-    // Set HTML content
-    taxonomyContainer.innerHTML = createTaxonomyHTML(hierarchy);
 
-    // Add event listeners for toggle buttons
-    taxonomyContainer.addEventListener('click', (e) => {
-      if (e.target.classList.contains('toggle-btn')) {
-        const path = e.target.dataset.path;
-        const childrenContainer = taxonomyContainer.querySelector(`[data-parent="${path}"]`);
-        if (childrenContainer) {
-          const isHidden = childrenContainer.style.display === 'none';
-          childrenContainer.style.display = isHidden ? 'block' : 'none';
-          e.target.textContent = isHidden ? '▼' : '▶';
-        }
-      }
-    });
-
-    facetGroup.appendChild(taxonomyContainer);
-  }
 
   _renderStandardFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState) {
     const optionsContainer = document.createElement('div');
