@@ -153,118 +153,86 @@ export class TaxonomyRenderer {
     });
   }
 
-  _addCheckboxListeners(container, hierarchy, facetKey) {
-    container._hierarchy = hierarchy;
+_addCheckboxListeners(container, hierarchy, facetKey) {
+  container._hierarchy = hierarchy;
 
-    container.addEventListener('change', (e) => {
-      if (e.target.type === 'checkbox') {
-        const checkbox = e.target;
-        const fullPath = checkbox.value;
-        const isChecked = checkbox.checked;
-        e.stopPropagation();
+  container.addEventListener('change', (e) => {
+    if (e.target.type === 'checkbox') {
+      const checkbox = e.target;
+      const fullPath = checkbox.value;
+      const isChecked = checkbox.checked;
+      e.stopPropagation();
 
-        const parentPaths = this._getParentPaths(fullPath) || [];
-        const allChildPaths = this._getChildPathsForNode(hierarchy, fullPath) || [];
+      const parentPaths = this._getParentPaths(fullPath) || [];
+      const allChildPaths = this._getChildPathsForNode(hierarchy, fullPath) || [];
 
-        // Store the paths that will be affected for event dispatch
-        const affectedPaths = [];
+      // Update the visual state of related checkboxes (but don't dispatch events for them)
+      this._updateRelatedCheckboxes(container, hierarchy, fullPath, isChecked, parentPaths, allChildPaths);
 
-        this._updateRelatedCheckboxes(container, hierarchy, fullPath, isChecked, parentPaths, allChildPaths, affectedPaths);
+      // Only dispatch event for the path that was actually clicked
+      const changeEvent = new CustomEvent('taxonomyChange', {
+        detail: {
+          facetKey,
+          path: fullPath,  // Only the clicked path
+          checked: isChecked,
+          action: isChecked ? 'add' : 'remove'
+        }
+      });
+      container.dispatchEvent(changeEvent);
+    }
+  });
+}
 
-        // Dispatch events for all affected paths
-        affectedPaths.forEach(({ path, checked, action }) => {
-          const changeEvent = new CustomEvent('taxonomyChange', {
-            detail: {
-              facetKey,
-              path: path,
-              checked: checked,
-              action: action
-            }
-          });
-          container.dispatchEvent(changeEvent);
+_updateRelatedCheckboxes(container, hierarchy, clickedPath, isChecked, parentPaths, childPaths) {
+  if (isChecked) {
+    // When checking a child, check all parent paths (visual only)
+    parentPaths?.forEach(parentPath => {
+      const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
+      if (parentCheckbox && !parentCheckbox.checked) {
+        parentCheckbox.checked = true;
+        this._updateCheckboxVisuals(parentCheckbox, true);
+      }
+    });
+
+    // When checking a parent, check all child paths (visual only)
+    childPaths?.forEach(childPath => {
+      const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
+      if (childCheckbox && !childCheckbox.checked) {
+        childCheckbox.checked = true;
+        this._updateCheckboxVisuals(childCheckbox, true);
+      }
+    });
+
+  } else {
+    // When unchecking a parent, uncheck all child paths (visual only)
+    childPaths?.forEach(childPath => {
+      const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
+      if (childCheckbox && childCheckbox.checked) {
+        childCheckbox.checked = false;
+        this._updateCheckboxVisuals(childCheckbox, false);
+      }
+    });
+
+    // When unchecking a child, check if parents should be unchecked (visual only)
+    parentPaths?.forEach(parentPath => {
+      const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
+      if (parentCheckbox && parentCheckbox.checked) {
+        const parentChildPaths = this._getChildPathsForNode(hierarchy, parentPath) || [];
+        const hasCheckedChildren = parentChildPaths.some(childPath => {
+          const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
+          return childCheckbox && childCheckbox.checked;
         });
+        if (!hasCheckedChildren) {
+          parentCheckbox.checked = false;
+          this._updateCheckboxVisuals(parentCheckbox, false);
+        }
       }
     });
   }
 
-  _updateRelatedCheckboxes(container, hierarchy, clickedPath, isChecked, parentPaths, childPaths, affectedPaths = []) {
-    // Add the clicked path to affected paths
-    affectedPaths.push({
-      path: clickedPath,
-      checked: isChecked,
-      action: isChecked ? 'add' : 'remove'
-    });
-
-    if (isChecked) {
-      // When checking a child, check all parent paths
-      parentPaths?.forEach(parentPath => {
-        const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
-        if (parentCheckbox && !parentCheckbox.checked) {
-          parentCheckbox.checked = true;
-          this._updateCheckboxVisuals(parentCheckbox, true);
-          affectedPaths.push({
-            path: parentPath,
-            checked: true,
-            action: 'add'
-          });
-        }
-      });
-
-      // When checking a parent, check all child paths
-      childPaths?.forEach(childPath => {
-        const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
-        if (childCheckbox && !childCheckbox.checked) {
-          childCheckbox.checked = true;
-          this._updateCheckboxVisuals(childCheckbox, true);
-          affectedPaths.push({
-            path: childPath,
-            checked: true,
-            action: 'add'
-          });
-        }
-      });
-
-    } else {
-      // When unchecking a parent, uncheck all child paths
-      childPaths?.forEach(childPath => {
-        const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
-        if (childCheckbox && childCheckbox.checked) {
-          childCheckbox.checked = false;
-          this._updateCheckboxVisuals(childCheckbox, false);
-          affectedPaths.push({
-            path: childPath,
-            checked: false,
-            action: 'remove'
-          });
-        }
-      });
-
-      // When unchecking a child, check if parents should be unchecked
-      parentPaths?.forEach(parentPath => {
-        const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
-        if (parentCheckbox && parentCheckbox.checked) {
-          const parentChildPaths = this._getChildPathsForNode(hierarchy, parentPath) || [];
-          const hasCheckedChildren = parentChildPaths.some(childPath => {
-            const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
-            return childCheckbox && childCheckbox.checked;
-          });
-          if (!hasCheckedChildren) {
-            parentCheckbox.checked = false;
-            this._updateCheckboxVisuals(parentCheckbox, false);
-            affectedPaths.push({
-              path: parentPath,
-              checked: false,
-              action: 'remove'
-            });
-          }
-        }
-      });
-    }
-
-    // Update visuals for the clicked checkbox
-    this._updateCheckboxVisuals(container.querySelector(`input[value="${clickedPath}"]`), isChecked);
-  }
-
+  // Update visuals for the clicked checkbox
+  this._updateCheckboxVisuals(container.querySelector(`input[value="${clickedPath}"]`), isChecked);
+}
   _updateCheckboxVisuals(checkbox, isChecked) {
     if (!checkbox) return;
 
@@ -274,5 +242,32 @@ export class TaxonomyRenderer {
       textSpan.classList.toggle('font-medium', isChecked);
       textSpan.classList.toggle('text-blue-700', isChecked);
     }
+  }
+
+  _renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, onStateChange) {
+    // Create container for the taxonomy
+    const taxonomyContainer = document.createElement('div');
+
+    // Get facet data (e.g., hierarchy of terms)
+    const facetData = aggregations[facetKey] || [];
+
+    // Render the taxonomy into the container
+    this.renderTaxonomy(taxonomyContainer, facetData, facetKey, checkedState);
+
+    // Listen for custom 'taxonomyChange' events dispatched by taxonomyRenderer
+    taxonomyContainer.addEventListener('taxonomyChange', (e) => {
+      const { facetKey, path, checked, action } = e.detail;  
+
+      // Notify the main application state handler for the single affected path
+      onStateChange({
+        type: 'FACET_CHANGE',
+        facetType: facetKey,
+        value: path,           
+        checked: checked,
+      });
+    });
+
+    // Append the taxonomy UI to the DOM
+    facetGroup.appendChild(taxonomyContainer);
   }
 }

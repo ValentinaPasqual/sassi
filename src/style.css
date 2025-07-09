@@ -86,22 +86,22 @@
 }
 
 /* Custom scrollbar styling for results */
-#results::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 8px;
 }
 
-#results::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 4px;
 }
 
-#results::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
   transition: background 0.2s ease;
 }
 
-#results::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
@@ -205,50 +205,9 @@
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .facet-category, .results-container {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    border-color: #374151;
-  }
-
-  .facet-category-title, .search-sort-container {
-    color: #f1f5f9;
-    background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
-    border-bottom-color: #374151;
-  }
-
-  .facet-category-title::after, .search-sort-container::after {
-    color: #94a3b8;
-  }
-
-  .facet-category-content, #results {
-    background: #1e293b;
-  }
-
-  .facet-category-content .facet-group, .result-card {
-    background: #334155;
-    border-color: #374151;
-    color: #f1f5f9;
-  }
-
-  .facet-category-content .facet-group:hover, .result-card:hover {
-    background: #475569;
-    border-color: #4b5563;
-  }
-
-  .result-card h3 {
-    color: #f1f5f9;
-  }
-
-  .result-card p {
-    color: #94a3b8;
-  }
-
-  .result-card .result-meta {
-    color: #64748b;
-    border-top-color: #374151;
-  }
+/* TO KEEP FILTER AND RESULTS PANELS OPEN WHEN PAGE LOADS */
+.panel-open {
+    transform: translateX(0%) !important;
 }
 
 

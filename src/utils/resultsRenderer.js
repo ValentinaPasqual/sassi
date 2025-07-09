@@ -1,4 +1,4 @@
-// resultsRenderer.js
+// Enhanced resultsRenderer.js with focus functionality
 import { ModalRenderer } from './modalRenderer.js';
 
 export class ResultsRenderer {
@@ -37,6 +37,78 @@ export class ResultsRenderer {
     // Add event listeners to the buttons
     this._addMapFocusListeners();
     this._addModalListeners();
+  }
+
+  /**
+   * Focus on a specific result item by ID_opera
+   * @param {string} idOpera - The ID_opera of the item to focus on
+   */
+  focusOnResult(idOpera) {
+    const resultElement = document.querySelector(`[data-result-id="${idOpera}"]`);
+    if (resultElement) {
+      // Open the filters panel
+      this._openFiltersPanel();
+      
+      // Scroll to the element
+      resultElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      
+      // Add highlight effect
+      this._highlightResult(resultElement);
+      
+      console.log(`Focused on result with ID_opera: ${idOpera}`);
+      return true;
+    } else {
+      console.warn(`Result with ID_opera ${idOpera} not found in current results`);
+      return false;
+    }
+  }
+
+  /**
+   * Open the filters panel by removing the specified classes
+   */
+  _openFiltersPanel() {
+    const filtersPanel = document.getElementById('results-panel');
+    if (filtersPanel) {
+      // Remove the classes that keep the panel closed
+      filtersPanel.classList.remove('panel-closed-right');
+      console.log('Filters panel opened');
+    } else {
+      console.warn('Filters panel with ID "filters-panel" not found');
+    }
+  }
+
+  /**
+   * Add highlight effect to a result element
+   * @param {HTMLElement} element - The element to highlight
+   */
+  _highlightResult(element) {
+    // Remove any existing highlight
+    const previouslyHighlighted = document.querySelector('.result-highlighted');
+    if (previouslyHighlighted) {
+      previouslyHighlighted.classList.remove('result-highlighted');
+    }
+    
+    // Add highlight class
+    element.classList.add('result-highlighted');
+    
+    // Add temporary glow effect
+    element.style.transition = 'all 0.3s ease';
+    element.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.5)';
+    element.style.transform = 'scale(1.02)';
+    
+    // Remove glow effect after animation
+    setTimeout(() => {
+      element.style.boxShadow = '';
+      element.style.transform = '';
+    }, 1000);
+    
+    // Remove highlight class after a longer period
+    setTimeout(() => {
+      element.classList.remove('result-highlighted');
+    }, 3000);
   }
 
   _groupByIdOpera(items) {
@@ -112,7 +184,8 @@ export class ResultsRenderer {
     }).join('');
 
     return `
-      <div class="result-card p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow">
+      <div class="result-card p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow" 
+           data-result-id="${work.ID_opera}">
         <h3 class="font-semibold flex items-center justify-between mb-3">
           <span>${work.Titolo}, ${work.Autore} (${work.Anno})</span>
             <button class="modal-toggle-btn ml-2 inline-flex items-center justify-center p-2 rounded-full border bg-slate-100 text-slate-700 border-slate-200 transition-all duration-200 hover:shadow-sm hover:bg-slate-200 hover:scale-105 active:scale-95 cursor-pointer transform"

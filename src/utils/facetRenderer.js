@@ -1,10 +1,13 @@
 // facetRenderer.js
 import { TaxonomyRenderer } from './taxonomyRenderer.js';
+import { RangeRenderer } from './rangeRenderer.js';
 
 export class FacetRenderer {
   constructor(config) {
     this.config = config;
-    this.taxonomyRenderer = new TaxonomyRenderer(); // Add this line
+    this.taxonomyRenderer = new TaxonomyRenderer(); 
+    this.rangeRenderer = new RangeRenderer();
+    this.searchTerms = {}; // Store search terms for each facet
   }
 
   renderFacets(aggregations, state, onStateChange) {
@@ -56,9 +59,9 @@ export class FacetRenderer {
         const facetGroup = this._createFacetGroup(facetKey, facetConfig);
         
         if (facetConfig.type === 'range') {
-          this._renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange);
+          this.rangeRenderer._renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange);
         } else if (facetConfig.type === 'taxonomy') {
-          this._renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, onStateChange);
+          this.taxonomyRenderer._renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, onStateChange);
         } else {
           this._renderStandardFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState);
         }
@@ -71,6 +74,38 @@ export class FacetRenderer {
     });
 
     this._addFacetEventListeners(onStateChange);
+  }
+
+  _filterFacetOptions(facetGroup, searchTerm) {
+    const options = facetGroup.querySelectorAll('label');
+    let visibleCount = 0;
+    
+    options.forEach(option => {
+      const text = option.textContent.toLowerCase();
+      const isVisible = searchTerm === '' || text.includes(searchTerm);
+      
+      option.style.display = isVisible ? 'block' : 'none';
+      if (isVisible) visibleCount++;
+    });
+    
+    // Hide the entire facet group if no options are visible
+    const facetContent = facetGroup.querySelector('.facet-options') || facetGroup.querySelector('div');
+    if (facetContent) {
+      facetGroup.style.display = visibleCount > 0 ? 'block' : 'none';
+    }
+  }
+
+  _updateCategoryVisibility() {
+    const categories = document.querySelectorAll('.facet-category');
+    
+    categories.forEach(category => {
+      const visibleFacets = category.querySelectorAll('.facet-group[style*="display: block"], .facet-group:not([style*="display: none"])');
+      const hasVisibleFacets = Array.from(visibleFacets).some(facet => 
+        facet.style.display !== 'none'
+      );
+      
+      category.style.display = hasVisibleFacets ? 'block' : 'none';
+    });
   }
 
   _getCheckedState() {
@@ -89,172 +124,48 @@ export class FacetRenderer {
     facetGroup.className = 'facet-group mb-4 p-4 bg-white rounded-lg shadow';
     facetGroup.id = `${facetKey}-facet`;
 
+    const facetHeader = document.createElement('div');
+    facetHeader.className = 'facet-header mb-3';
+
     const title = document.createElement('h3');
     title.className = 'text-lg font-semibold mb-2';
     title.textContent = facetConfig.title || facetKey;
-    facetGroup.appendChild(title);
+    facetHeader.appendChild(title);
 
+    // Add individual facet search bar (for non-range facets)
+    if (facetConfig.type !== 'range') {
+      const searchContainer = document.createElement('div');
+      searchContainer.className = 'facet-search mb-2';
+      
+      const searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.className = 'facet-search-input w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500';
+      searchInput.placeholder = `Cerca...`;
+      searchInput.id = `search-${facetKey}`;
+      
+      const debouncedSearch = this._debounce((searchTerm) => {
+        this._searchWithinFacet(facetKey, searchTerm);
+      }, 300);
+      
+      searchInput.addEventListener('input', (e) => {
+        debouncedSearch(e.target.value);
+      });
+      
+      searchContainer.appendChild(searchInput);
+      facetHeader.appendChild(searchContainer);
+    }
+
+    facetGroup.appendChild(facetHeader);
     return facetGroup;
   }
 
-  _renderRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange) {
-    const sliderContainer = document.createElement('div');
-    sliderContainer.className = 'facet-slider my-4';
-
-    const valueBuckets = aggregations[facetKey] || [];
-    // Store the full bucket information for the bar chart
-    const buckets = valueBuckets
-      .map(bucket => {
-        const value = parseInt(bucket.key, 10);
-        return isNaN(value) ? null : {
-          value: value,
-          count: bucket.doc_count || 0
-        };
-      })
-      .filter(bucket => bucket !== null);
+  _searchWithinFacet(facetKey, searchTerm) {
+    const facetGroup = document.getElementById(`${facetKey}-facet`);
+    if (!facetGroup) return;
     
-    // Extract just the values for min/max calculations
-    const values = buckets.map(bucket => bucket.value);
-
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
-
-    // Create the chart and slider structure
-    sliderContainer.innerHTML = `
-      <label class="sr-only">Value range</label>
-      <div class="relative">
-        <div id="${facetKey}-chart" class="w-full h-24 mb-2"></div>
-      </div>
-      <div id="${facetKey}-slider" class="mt-2"></div>
-      <div class="mt-5">
-        <div class="text-sm font-medium mb-2">Custom range:</div>
-        <div class="flex space-x-4">
-          <div class="flex-1">
-            <input id="${facetKey}-min-input" type="number"
-                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
-                   value="${minValue}">
-          </div>
-          <div class="flex-1">
-            <input id="${facetKey}-max-input" type="number"
-                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
-                   value="${maxValue}">
-          </div>
-        </div>
-      </div>
-    `;
-
-    facetGroup.appendChild(sliderContainer);
-
-    // Access elements using querySelector within sliderContainer
-    const chartElement = sliderContainer.querySelector(`#${facetKey}-chart`);
-    const slider = sliderContainer.querySelector(`#${facetKey}-slider`);
-    const minInput = sliderContainer.querySelector(`#${facetKey}-min-input`);
-    const maxInput = sliderContainer.querySelector(`#${facetKey}-max-input`);
-    
-    // Render the bar chart - need to use ChartRenderer instance
-    this._renderBarChart(chartElement, buckets, minValue, maxValue);
-
-    // Get current filter values or use min/max values
-    const currentFilter = state.filters[facetKey];
-    let startValue, endValue;
-
-    if (!currentFilter || currentFilter.length === 0) {
-        startValue = minValue;
-        endValue = maxValue;
-    } else {
-        startValue = currentFilter[0];
-        endValue = currentFilter[1];
-    }
-
-    // Initialize noUiSlider
-    noUiSlider.create(slider, {
-        start: [startValue, endValue],
-        connect: true,
-        step: 1, // Integer steps
-        range: {
-            'min': minValue,
-            'max': maxValue
-        },
-        format: {
-            to: (value) => Math.round(value),
-            from: (value) => parseInt(value, 10)
-        }
-    });
-
-    // Update inputs when slider changes
-    slider.noUiSlider.on('update', (values) => {
-        minInput.value = Math.round(Number(values[0]));
-        maxInput.value = Math.round(Number(values[1]));
-    });
-
-    // Handle slider changes
-    slider.noUiSlider.on('change', (values) => {
-        const [start, end] = values.map(val => Math.round(Number(val)));
-
-        if (!isNaN(start) && !isNaN(end)) {
-            // Use callback to update state instead of direct access
-            onStateChange({ 
-              type: 'RANGE_CHANGE', 
-              facetKey, 
-              value: [start, end] 
-            });
-            
-            // Update the highlighted range in the chart
-            this._updateChartHighlight(chartElement, buckets, start, end);
-        }
-    });
-
-    // Handle input changes with debounce utility
-    const handleInputChange = this._debounce((evt) => {
-        const isMin = evt.target === minInput;
-        const inputValue = parseInt(evt.target.value, 10);
-        const [currentMin, currentMax] = slider.noUiSlider.get().map(Number);
-
-        if (!isNaN(inputValue)) {
-            slider.noUiSlider.set([
-                isMin ? inputValue : currentMin,
-                isMin ? currentMax : inputValue
-            ]);
-        }
-    }, 200);
-
-    minInput.addEventListener('input', handleInputChange);
-    maxInput.addEventListener('input', handleInputChange);
-
-    // Initial chart highlight based on current range
-    this._updateChartHighlight(chartElement, buckets, startValue, endValue);
+    this.searchTerms[facetKey] = searchTerm.toLowerCase().trim();
+    this._filterFacetOptions(facetGroup, this.searchTerms[facetKey]);
   }
-
-_renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, onStateChange) {
-  // Create container for the taxonomy
-  const taxonomyContainer = document.createElement('div');
-
-  // Get facet data (e.g., hierarchy of terms)
-  const facetData = aggregations[facetKey] || [];
-
-  // Render the taxonomy into the container
-  this.taxonomyRenderer.renderTaxonomy(taxonomyContainer, facetData, facetKey, checkedState);
-
-  // Listen for custom 'taxonomyChange' events dispatched by taxonomyRenderer
-  taxonomyContainer.addEventListener('taxonomyChange', (e) => {
-    const { facetKey, allAffectedPaths, action } = e.detail;
-
-    // Notify the main application state handler of each affected path
-    allAffectedPaths.forEach((path) => {
-      onStateChange({
-        type: 'FACET_CHANGE',
-        facetType: facetKey,
-        value: path,
-        checked: action === 'add'
-      });
-    });
-  });
-
-  // Append the taxonomy UI to the DOM
-  facetGroup.appendChild(taxonomyContainer);
-}
-
-
 
   _renderStandardFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState) {
     const optionsContainer = document.createElement('div');
@@ -263,8 +174,18 @@ _renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedSta
     const facetData = aggregations[facetKey] || [];
     facetData.forEach(bucket => {
       const label = document.createElement('label');
-      label.className = 'cursor-pointer block';
-      label.style.display = 'block';
+      label.className = 'cursor-pointer block facet-option flex items-center justify-between';
+      label.style.display = 'flex';
+      label.setAttribute('data-search-text', bucket.key.toLowerCase());
+      
+      // Add grey styling if count is 0
+      if (bucket.doc_count === 0) {
+        label.classList.add('text-gray-400');
+      }
+
+      // Left side container for checkbox and text
+      const leftContainer = document.createElement('div');
+      leftContainer.className = 'flex items-center';
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -277,70 +198,24 @@ _renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedSta
       }
 
       const text = document.createElement('span');
-      text.textContent = `${bucket.key} (${bucket.doc_count})`;
+      text.textContent = bucket.key;
       text.className = 'text-sm';
 
-      label.appendChild(checkbox);
-      label.appendChild(text);
+      // Right side container for count
+      const countContainer = document.createElement('span');
+      countContainer.textContent = bucket.doc_count;
+      countContainer.className = `text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-auto ${bucket.doc_count === 0 ? 'text-gray-400 bg-gray-50' : ''}`;
+
+      leftContainer.appendChild(checkbox);
+      leftContainer.appendChild(text);
+      
+      label.appendChild(leftContainer);
+      label.appendChild(countContainer);
       optionsContainer.appendChild(label);
     });
 
     facetGroup.appendChild(optionsContainer);
-  }
-
-  // Helper methods for chart rendering and debouncing
-  _renderBarChart(element, buckets, minValue, maxValue) {
-    // Clear any existing content
-    element.innerHTML = '';
-    
-    // Find the maximum count for scaling
-    const maxCount = Math.max(...buckets.map(bucket => bucket.count));
-    
-    // Create a container for the bars
-    const barsContainer = document.createElement('div');
-    barsContainer.className = 'flex items-end w-full h-full relative';
-    element.appendChild(barsContainer);
-    
-    // Sort buckets by value to ensure bars are in order
-    const sortedBuckets = [...buckets].sort((a, b) => a.value - b.value);
-    
-    // Create and append bar elements
-    sortedBuckets.forEach(bucket => {
-      const barHeight = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
-      
-      const bar = document.createElement('div');
-      bar.className = 'flex-1 mx-px';
-      bar.style.height = `${barHeight}%`;
-      bar.style.backgroundColor = '#b0c4de';
-      bar.dataset.value = bucket.value;
-      bar.dataset.count = bucket.count;
-      bar.title = `Value: ${bucket.value}, Count: ${bucket.count}`;
-      
-      barsContainer.appendChild(bar);
-    });
-    
-    // Add a selection overlay for highlighting the active range
-    const highlightOverlay = document.createElement('div');
-    highlightOverlay.className = 'absolute top-0 h-full pointer-events-none';
-    highlightOverlay.style.backgroundColor = 'rgba(66, 153, 225, 0.3)';
-    highlightOverlay.id = `${element.id}-highlight`;
-    element.appendChild(highlightOverlay);
-  }
-
-  _updateChartHighlight(chartElement, buckets, startValue, endValue) {
-    const highlight = chartElement.querySelector(`#${chartElement.id}-highlight`);
-    if (!highlight) return;
-    
-    const range = buckets[buckets.length - 1].value - buckets[0].value;
-    if (range <= 0) return;
-    
-    // Calculate the left position and width as percentages
-    const leftPos = ((startValue - buckets[0].value) / range) * 100;
-    const width = ((endValue - startValue) / range) * 100;
-    
-    highlight.style.left = `${leftPos}%`;
-    highlight.style.width = `${width}%`;
-  }
+}
 
   _addFacetEventListeners(onStateChange) {
     if (!this.config.aggregations) {
@@ -352,7 +227,7 @@ _renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedSta
       const facetContainer = document.getElementById(`${facetKey}-facet`);
       
       if (facetContainer) {
-        facetContainer.querySelectorAll('input').forEach(input => {
+        facetContainer.querySelectorAll('input[type="checkbox"]').forEach(input => {
           input.addEventListener('change', (event) => {
             this._onFacetChange(event, onStateChange);
           });
@@ -367,11 +242,40 @@ _renderTaxonomyFacet(facetGroup, facetKey, facetConfig, aggregations, checkedSta
     onStateChange({ type: 'FACET_CHANGE', facetType, value, checked });
   }
 
-   _debounce(func, delay) {
+  // Clear all search terms and show all facet options
+  clearAllSearches() {
+    this.searchTerms = {};
+    
+    // Clear individual facet searches
+    Object.keys(this.config.aggregations).forEach(facetKey => {
+      const searchInput = document.getElementById(`search-${facetKey}`);
+      if (searchInput) {
+        searchInput.value = '';
+      }
+    });
+    
+    // Show all options and categories
+    const options = document.querySelectorAll('.facet-option, label');
+    options.forEach(option => {
+      option.style.display = 'block';
+    });
+    
+    const facetGroups = document.querySelectorAll('.facet-group');
+    facetGroups.forEach(group => {
+      group.style.display = 'block';
+    });
+    
+    const categories = document.querySelectorAll('.facet-category');
+    categories.forEach(category => {
+      category.style.display = 'block';
+    });
+  }
+
+  _debounce(func, delay) {
     let timer;
     return function () {
       clearTimeout(timer);  
       timer = setTimeout(() => func.apply(this, arguments), delay);
     };
-   }
+  }
 }

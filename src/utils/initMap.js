@@ -1,8 +1,13 @@
+// Enhanced initMap.js with working polygon loading on marker click
+
 import 'leaflet/dist/leaflet.css'; 
 import L from 'leaflet';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
+import 'leaflet-providers';
+
+import { PolygonManager } from './polygonManager.js'
 
 function initMap(config) {
     const { initialView, initialZoom, tileLayer, attribution } = config.map;
@@ -13,6 +18,13 @@ function initMap(config) {
     // Special coordinates that get unique treatment
     const SPECIAL_COORDS = [38.7200, -24.2200];
     const SPECIAL_COORDS_KEY = `${SPECIAL_COORDS[0]},${SPECIAL_COORDS[1]}`;
+
+    // Store reference to focus callback and polygon manager
+    let focusResultCallback = null;
+    let polygonManager = null;
+
+    polygonManager = new PolygonManager(map);
+    polygonManager.loadPolygonRepository();
 
     // Create a custom icon using Lucide MapPin
     const createCustomIcon = (count, isSpecial = false) => {
@@ -72,55 +84,46 @@ function initMap(config) {
       .special-marker {
         filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
       }
-      
-      /* Custom popup styles with scrolling */
       .leaflet-popup-content-wrapper {
-        border-radius: 8px;
         padding: 0;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
       }
-      
       .leaflet-popup-content {
         margin: 0;
-        max-height: 400px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        width: 320px !important;
+        padding: 0;
       }
-      
-      /* Custom scrollbar styling */
-      .leaflet-popup-content::-webkit-scrollbar {
-        width: 6px;
+      .leaflet-popup-close-button {
+        display: none;
       }
-      
-      .leaflet-popup-content::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
+      .custom-close-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        padding: 2px;
+        border-radius: 4px;
       }
-      
-      .leaflet-popup-content::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
+      .custom-close-btn:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
       }
-      
-      .leaflet-popup-content::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
+      .focus-result-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 4px;
       }
-      
-      /* Firefox scrollbar styling */
-      .leaflet-popup-content {
-        scrollbar-width: thin;
-        scrollbar-color: #c1c1c1 #f1f1f1;
+      .focus-result-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        transform: translateX(2px);
       }
-      
-      /* Ensure popup content containers don't exceed bounds */
-      .popup-container {
-        max-width: 100%;
-        box-sizing: border-box;
+      .polygon-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        padding: 2px;
+        border-radius: 4px;
       }
-      
-      /* Add some padding to the scrollable content */
-      .popup-content-inner {
-        padding: 4px;
+      .polygon-btn:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
       }
     `;
     document.head.appendChild(style);
@@ -128,8 +131,87 @@ function initMap(config) {
     // Store reference to special circle for cleanup
     let specialCircle = null;
 
-    // Function to render markers
-    const renderMarkers = (items) => {
+    // FIXED: Function to load polygon for a specific location
+    const loadPolygonForLocation = async (lat, lon, locationName) => {
+      if (!polygonManager) {
+        console.warn('PolygonManager not initialized');
+        return;
+      }
+
+      // Clear existing polygons
+      polygonManager.clearAllPolygons();
+
+      // Create location data with coordinates only (no OSM data needed)
+      const locationData = {
+        display_name: locationName,
+        lat: lat,
+        lon: lon
+      };
+
+      try {
+        console.log(`Loading polygon for ${locationName} at ${lat}, ${lon}`);
+        
+        // Try to find polygon by location name in the repository
+        await polygonManager.loadPolygonRepository();
+        const polygon = polygonManager.findPolygonByName(locationName);
+        
+        if (polygon) {
+          const layer = polygonManager.createPolygonLayer(polygon, locationData);
+          polygonManager.polygonLayers.set(polygonManager.getLocationId(locationData), {
+            layer,
+            data: locationData,
+            highlighted: false
+          });
+          polygonManager.polygonLayerGroup.addLayer(layer);
+          
+          // Fit map to show the polygon
+          setTimeout(() => {
+            polygonManager.fitBoundsToAll();
+          }, 100);
+          console.log(`Successfully loaded polygon for ${locationName}`);
+        } else {
+          console.log(`No polygon found for ${locationName}`);
+        }
+      } catch (error) {
+        console.error(`Error loading polygon for ${locationName}:`, error);
+      }
+    };
+
+    // Function to create focus button for an item
+    const createFocusButton = (item) => {
+      return `
+        <button class="focus-result-btn w-full text-left p-1 rounded text-xs" 
+                data-item-id="${item.ID_opera}"
+                onclick="window.focusOnResult('${item.ID_opera}')"
+                title="Vai al risultato nella lista">
+          <div class="flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 flex-shrink-0">
+              <path fill-rule="evenodd" d="M6.5 1.75a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75V3h-3V1.75ZM8 4a.75.75 0 0 1 .75.75v3.5h3.5a.75.75 0 0 1 0 1.5h-3.5v3.5a.75.75 0 0 1-1.5 0v-3.5h-3.5a.75.75 0 0 1 0-1.5h3.5v-3.5A.75.75 0 0 1 8 4Z" clip-rule="evenodd" />
+            </svg>
+            <span class="truncate">Mostra nei risultati</span>
+          </div>
+        </button>
+      `;
+    };
+
+    // Function to create polygon button for location
+    const createPolygonButton = (coords, locationName) => {
+      return `
+        <button class="polygon-btn ml-1" 
+                onclick="window.showPolygon(${coords[0]}, ${coords[1]}, '${locationName.replace(/'/g, "\\'")}')"
+                title="Mostra poligono area">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+            <path d="M8 1a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
+          </svg>
+        </button>
+      `;
+    };
+
+    // Make polygon loading function globally accessible
+    window.showPolygon = loadPolygonForLocation;
+
+    // Function to render markers - FIXED to only show filtered items
+    const renderMarkers = (filteredItems) => {
       // Clear previous markers and special circle
       markers.clearLayers();
       if (specialCircle) {
@@ -137,10 +219,11 @@ function initMap(config) {
         specialCircle = null;
       }
 
-      // Group items by coordinates
+      // Group ONLY the filtered items by coordinates
       const locationGroups = {};
       
-      items.forEach(item => {    
+      // Use the filteredItems parameter instead of assuming all items
+      filteredItems.forEach(item => {    
         // Skip items without coordinates
         if (!item.lat_long) return;
         
@@ -165,10 +248,11 @@ function initMap(config) {
           };
         }
         
+        // Only add items that are in the filtered results
         locationGroups[key].items.push(item);
       });
 
-      // Create markers for each location group
+      // Only show markers for locations that have filtered items
       Object.values(locationGroups).forEach(group => {
         const { name, items, coords } = group;
         const coordsKey = `${coords[0]},${coords[1]}`;
@@ -187,8 +271,8 @@ function initMap(config) {
                 title: item["Titolo"] || 'Unnamed',
                 year: item.Anno || 'Unknown Year',
                 locations: new Set(),
-                alpinist: item.Autore,
-                guide: item.Guide
+                author: item.Autore,
+                item: item // Store reference to item for focus button
               };
             }
             if (item["Spazi geografici"]) {
@@ -197,103 +281,116 @@ function initMap(config) {
           });
           
           popupContent = `
-          <div class="popup-container">
-            <div class="popup-content-inner">
-              <div class="max-w-sm bg-gradient-to-br from-red-50 to-pink-50 rounded-lg shadow-lg">
-                <div class="bg-red-500 text-white p-2 rounded-t-lg">
-                  <h2 class="font-bold text-base flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                      <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                    </svg>
-                    Special Location
-                  </h2>
+          <div class="max-w-sm bg-gradient-to-br from-red-50 to-pink-50 rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-red-500 text-white p-2">
+              <h2 class="font-bold text-base flex items-center justify-between">
+                <div class="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                    <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                  </svg>
+                  Special Location
                 </div>
-                <div class="p-3">
-                  <div class="bg-white rounded p-2 mb-2 shadow-sm border-l-2 border-red-400">
-                    <p class="text-xs text-gray-600 flex items-center gap-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-500">
-                        <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                <div class="custom-close-btn" onclick="this.closest('.leaflet-popup').style.display='none'">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                    <path d="M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z"/>
+                  </svg>
+                </div>
+              </h2>
+            </div>
+            <div class="p-3">
+              <div class="bg-white rounded p-2 mb-2 shadow-sm border-l-2 border-red-400">
+                <p class="text-xs text-gray-600 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-500">
+                    <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                  </svg>
+                  <span class="font-mono text-xs">${coords[0]}, ${coords[1]}</span>
+                </p>
+              </div>
+              <h3 class="font-semibold text-sm text-gray-800 flex items-center gap-1 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-red-500">
+                  <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
+                </svg>
+                ${Object.keys(operaGroups).length} opere letterarie
+              </h3>
+              <div class="space-y-1 max-h-28 overflow-y-scroll">
+                ${Object.values(operaGroups).map(group => `
+                  <div class="bg-white rounded p-2 shadow-sm border border-gray-100 text-xs">
+                    <div class="flex items-start gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0">
+                        <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
+                        <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
                       </svg>
-                      <span class="font-mono text-xs">${coords[0]}, ${coords[1]}</span>
-                    </p>
-                  </div>
-                  <h3 class="font-semibold text-sm text-gray-800 flex items-center gap-1 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-red-500">
-                      <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
-                    </svg>
-                    ${Object.keys(operaGroups).length} opere letterarie
-                  </h3>
-                  <div class="space-y-1">
-                    ${Object.values(operaGroups).map(group => `
-                      <div class="bg-white rounded p-2 shadow-sm border border-gray-100 text-xs">
-                        <div class="flex items-start gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0">
-                            <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
-                            <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
+                      <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-gray-800 leading-tight">${group.title}, ${group.author || 'Unknown Author'} (${group.year})</div>
+                        <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
+                            <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
                           </svg>
-                          <div class="min-w-0 flex-1">
-                            <div class="font-semibold text-gray-800 leading-tight">${group.title}, ${group.alpinist || 'Unknown Author'} (${group.year})</div>
-                            <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
-                                <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                              </svg>
-                              ${Array.from(group.locations).join(', ')}
-                            </div>
-                          </div>
+                          ${Array.from(group.locations).join(', ')}
+                        </div>
+                        <div class="mt-1">
+                          ${createFocusButton(group.item)}
                         </div>
                       </div>
-                    `).join('')}
+                    </div>
                   </div>
-                </div>
+                `).join('')}
               </div>
             </div>
           </div>
           `;
         } else {
-          // Regular popup format
+          // Regular popup format - also only shows filtered items
           popupContent = `
-          <div class="popup-container">
-            <div class="popup-content-inner">
-              <div class="max-w-sm bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg">
-                <div class="bg-blue-500 text-white p-2 rounded-t-lg">
-                  <h2 class="font-bold text-base flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                      <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                    </svg>
-                    ${name}
-                  </h2>
+          <div class="max-w-sm bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-blue-500 text-white p-2">
+              <h2 class="font-bold text-base flex items-center justify-between">
+                <div class="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                    <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                  </svg>
+                  ${name}
+                  ${createPolygonButton(coords, name)}
                 </div>
-                <div class="p-3">
-                  <h3 class="font-semibold text-sm text-gray-800 flex items-center gap-1 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-blue-500">
-                      <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
-                    </svg>
-                    ${items.length} opere letterarie
-                  </h3>
-                  <div class="space-y-1">
-                    ${items.map(item => `
-                      <div class="bg-white rounded p-2 shadow-sm border border-gray-100 text-xs">
-                        <div class="flex items-start gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0">
-                            <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
-                            <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
-                          </svg>
-                          <div class="min-w-0 flex-1">
-                            <div class="font-semibold text-gray-800 leading-tight">${item["Titolo"] || 'Unnamed'}, ${item.Alpinist || 'Unknown Author'} (${item.Anno || 'Unknown Year'})</div>
-                            ${item.Guide ? `
-                              <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
-                                  <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z"/>
-                                </svg>
-                                ${item.Guide}
-                              </div>
-                            ` : ''}
+                <div class="custom-close-btn" onclick="this.closest('.leaflet-popup').style.display='none'">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                    <path d="M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z"/>
+                  </svg>
+                </div>
+              </h2>
+            </div>
+            <div class="p-3">
+              <h3 class="font-semibold text-sm text-gray-800 flex items-center gap-1 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-blue-500">
+                  <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
+                </svg>
+                ${items.length} opere letterarie
+              </h3>
+              <div class="space-y-1 max-h-28 overflow-y-scroll">
+                ${items.map(item => `
+                  <div class="bg-white rounded p-2 shadow-sm border border-gray-100 text-xs">
+                    <div class="flex items-start gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0">
+                        <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
+                        <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
+                      </svg>
+                      <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-gray-800 leading-tight">${item["Titolo"] || 'Unnamed'}, ${item.Autore || 'Unknown Author'} (${item.Anno || 'Unknown Year'})</div>
+                        ${item.Guide ? `
+                          <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
+                              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z"/>
+                            </svg>
+                            ${item.Guide}
                           </div>
+                        ` : ''}
+                        <div class="mt-1">
+                          ${createFocusButton(item)}
                         </div>
                       </div>
-                    `).join('')}
+                    </div>
                   </div>
-                </div>
+                `).join('')}
               </div>
             </div>
           </div>
@@ -303,11 +400,7 @@ function initMap(config) {
         // Create marker with custom icon
         const marker = L.marker(coords, {
           icon: createCustomIcon(items.length, isSpecial)
-        }).bindPopup(popupContent, {
-          maxWidth: 320,
-          maxHeight: 400,
-          className: 'custom-scrollable-popup'
-        });
+        }).bindPopup(popupContent);
 
         // Add blue circle around special marker
         if (isSpecial) {
@@ -322,20 +415,28 @@ function initMap(config) {
 
         markers.addLayer(marker);
       });
-      
-      // If no markers were added, log an error
+
+      // If no markers were added, log a message
       if (Object.keys(locationGroups).length === 0) {
-        console.error('No valid coordinates found in the data');
+        console.log('No markers to display for current filter selection');
       } else {
-        console.log(`Added ${Object.keys(locationGroups).length} markers to the map`);
+        console.log(`Added ${Object.keys(locationGroups).length} markers to the map (showing only filtered items)`);
       }
+    };
+
+    // Function to set the focus callback
+    const setFocusResultCallback = (callback) => {
+      focusResultCallback = callback;
+      // Make it globally accessible for the onclick handlers
+      window.focusOnResult = callback;
     };
 
     // Return the map and functions
     return {
       map,
       markers,
-      renderMarkers
+      renderMarkers,
+      setFocusResultCallback
     };
 }
 
