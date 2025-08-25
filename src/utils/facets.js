@@ -80,10 +80,10 @@ export class FacetsRenderer {
           <div class="slider" id="${facetKey}-slider"></div>
           <div class="inputs">
             <input type="number" id="${facetKey}-min-input"
-                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
+                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-primary-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
                    value="0">
             <input type="number" id="${facetKey}-max-input"
-                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
+                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-primary-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
                    value="100">
           </div>
         </div>
@@ -200,12 +200,12 @@ export class FacetsRenderer {
         <div class="flex space-x-4">
           <div class="flex-1">
             <input id="${facetKey}-min-input" type="number"
-                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
+                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-primary-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
                    value="${minValue}">
           </div>
           <div class="flex-1">
             <input id="${facetKey}-max-input" type="number"
-                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
+                   class="py-2 px-3 block w-full border rounded-md text-sm focus:ring focus:ring-primary-500 focus:outline-none dark:bg-gray-800 dark:text-gray-300"
                    value="${maxValue}">
           </div>
         </div>

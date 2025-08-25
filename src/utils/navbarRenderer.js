@@ -4,15 +4,19 @@
  * active filters display, results counter, map legend, and filter popup
  */
 
+import '../styles/tailwind.css'
+
 export class NavBarRenderer {
     constructor() {
         this.elements = {};
         this.activeFiltersCount = 0;
         this.resultsCount = 0;
+        this.uniqueResultsCount = 0
         this.isInitialized = false;
         this.currentFilters = {};
         this.currentQuery = '';
         this.config = null;
+        this.mapInstance = null; // Store reference to map instance
         
         // Initialize elements after DOM is ready
         this.init();
@@ -32,12 +36,39 @@ export class NavBarRenderer {
             activeFiltersCount: document.getElementById('active-filters-count'),
             resultsCounter: document.getElementById('results-counter'),
             resultsCount: document.getElementById('results-count'),
+            uniqueResultsCounter: document.getElementById('unique-results-counter'),
+            uniqueResultsCount: document.getElementById('unique-results-count'),
             clearAllBtn: document.getElementById('clear-all-btn'),
-            mapCenterBtn: document.getElementById('map-center-btn'),
-            toggleLegendBtn: document.getElementById('toggle-legend-btn'),
-            mapLegend: document.getElementById('map-legend'),
-            closeLegendBtn: document.getElementById('close-legend-btn')
+            layerButton: document.getElementById('map-layer-selector'),
+            markersButton: document.getElementById('map-markers-selector'),
+            // toggleLegendBtn: document.getElementById('toggle-legend-btn'),
+            // mapLegend: document.getElementById('map-legend'),
+            // closeLegendBtn: document.getElementById('close-legend-btn')
         };
+
+
+        const waitForLedaSearch = (callback, timeout = 10000) => {
+            const start = Date.now();
+            const check = setInterval(() => {
+                if (window.ledaSearch) {
+                    callback(window.ledaSearch);
+                    clearInterval(check);
+                } else if (Date.now() - start > timeout) {
+                    console.warn('Timeout waiting for ledaSearch');
+                    clearInterval(check);
+                }
+            }, 100); // Check every 100ms for faster response
+        };
+
+        // Initialize buttons which are customised via the config file
+        waitForLedaSearch((ledaSearch) => {
+            this.config = ledaSearch.config
+            this.mapInstance = ledaSearch.mapInstance; // Store map instance reference
+            // Initialize the Tile Layers via its related button
+            this.initializeLayerButton(this.config);
+        });
+
+        this.initializeMarkersSelector();
 
         // Bind event handlers
         this.bindEventHandlers();
@@ -52,6 +83,7 @@ export class NavBarRenderer {
         this.styleClearAllButton();
         
         this.isInitialized = true;
+
     }
 
     /**
@@ -60,17 +92,9 @@ export class NavBarRenderer {
     styleClearAllButton() {
         if (this.elements.clearAllBtn) {
             // Add red styling classes
-            this.elements.clearAllBtn.className = 'ml-2 px-3 py-1 bg-pink-100 hover:bg-pink-200 text-red-500 text-xs rounded-full transition-colors duration-200 hidden';
+            this.elements.clearAllBtn.className = 'ml-2 px-3 py-1 bg-pink-100 hover:bg-pink-200 text-red-500 text-xs rounded-full hidden';
             this.elements.clearAllBtn.innerHTML = '<i class="fas fa-times mr-1"></i>Cancella tutto';
         }
-    }
-
-    /**
-     * Set configuration for the navbar (used for filter labels and formatting)
-     * @param {Object} config - Application configuration
-     */
-    setConfig(config) {
-        this.config = config;
     }
 
     /**
@@ -86,12 +110,19 @@ export class NavBarRenderer {
         this.currentFilters = { ...searchState.filters };
         this.currentQuery = searchState.query || '';
 
+        // Extract unique results count from options
+        const uniqueResultsCount = options.uniqueResultsCount || 0;
+
+        console.log('hhihiihhi', uniqueResultsCount)
+
         // Calculate active filters count
         const filtersCount = this.calculateActiveFiltersCount(searchState.filters);
         
-        // Update displays - pass skipAnimation option through
-        this.updateActiveFiltersCount(filtersCount, options.skipAnimation);
-        this.updateResultsCount(resultsCount, options.skipAnimation);
+        // Update displays
+        this.updateActiveFiltersCount(filtersCount);
+        this.updateResultsCount(resultsCount, uniqueResultsCount);
+
+        console.log(uniqueResultsCount)
     }
 
     /**
@@ -128,121 +159,102 @@ export class NavBarRenderer {
     }
 
     /**
-     * Update the active filters count display with conditional animation
+     * Update the active filters count display
      * @param {number} count - Number of active filters
-     * @param {boolean} skipAnimation - Whether to skip the bounce animation
      */
-    updateActiveFiltersCount(count, skipAnimation = false) {
+    updateActiveFiltersCount(count) {
         this.activeFiltersCount = count;
         this.elements.activeFiltersCount.textContent = count;
         
         if (count > 0) {
-            this.showElementWithAnimation(this.elements.activeFiltersBadge, skipAnimation);
-            this.showElementWithAnimation(this.elements.clearAllBtn, skipAnimation);
+            this.showElement(this.elements.activeFiltersBadge);
+            this.showElement(this.elements.clearAllBtn);
         } else {
-            this.hideElementWithAnimation(this.elements.activeFiltersBadge);
-            this.hideElementWithAnimation(this.elements.clearAllBtn);
+            this.hideElement(this.elements.activeFiltersBadge);
+            this.hideElement(this.elements.clearAllBtn);
         }
         
         this.emitEvent('activeFiltersChanged', { count });
     }
 
     /**
-     * Update the results count display with conditional animation
+     * Update the results count display
      * @param {number} count - Number of results
-     * @param {boolean} skipAnimation - Whether to skip the bounce animation
      */
-    updateResultsCount(count, skipAnimation = false) {
+    updateResultsCount(count, uniqueResultsCount = 0) {
         this.resultsCount = count;
+        this.uniqueResultsCount = uniqueResultsCount;
+
+        // Update total results display
         this.elements.resultsCount.textContent = count;
         
+        // Update or create unique results count display
+        this.updateUniqueResultsDisplay(uniqueResultsCount);
+        
         if (count > 0) {
-            this.showElementWithAnimation(this.elements.resultsCounter, skipAnimation);
+            this.showElement(this.elements.resultsCounter);
         } else {
-            this.hideElementWithAnimation(this.elements.resultsCounter);
+            this.hideElement(this.elements.resultsCounter);
         }
+
+        // Show/hide unique results counter
+        if (uniqueResultsCount > 0 && this.elements.uniqueResultsCounter) {
+            this.showElement(this.elements.uniqueResultsCounter);
+        } else if (this.elements.uniqueResultsCounter) {
+            this.hideElement(this.elements.uniqueResultsCounter);
+        }
+
+    
         
-        this.emitEvent('resultsCountChanged', { count });
+        this.emitEvent('resultsCountChanged', { 
+        totalCount: count,
+        uniqueResultsCount: uniqueResultsCount 
+    });
     }
 
-    /**
-     * Show element with conditional animation
-     * @param {HTMLElement} element - Element to show
-     * @param {boolean} skipAnimation - Whether to skip the bounce animation
-     */
-    showElementWithAnimation(element, skipAnimation = false) {
-        if (!element) return;
+    // Method to update unique results count display
+    updateUniqueResultsDisplay(uniqueResultsCount) {
+        // Find or create the unique results count element
+        let uniqueResultsElement = document.getElementById('unique-results-count');
         
-        // If skipping animation, just show the element immediately
-        if (skipAnimation) {
-            element.classList.remove('hidden');
-            element.style.opacity = '1';
-            element.style.transform = 'scale(1) translateY(0px)';
-            element.style.transition = 'none';
-            return;
-        }
-        
-        // Prevent double execution
-        if (element.dataset.animating === 'true') return;
-        element.dataset.animating = 'true';
-        
-        // Remove hidden class and prepare for animation
-        element.classList.remove('hidden');
-        
-        // Clean up any existing classes to avoid conflicts
-        element.classList.remove('opacity-0', 'scale-95', '-translate-y-2', 'opacity-100', 'scale-100', 'translate-y-0');
-        
-        // Set initial state - dramatic for visibility
-        element.style.opacity = '0';
-        element.style.transform = 'scale(0.7) translateY(-25px)';
-        element.style.transition = 'none'; // No transition for initial state
-        
-        // Force reflow
-        element.offsetHeight;
-        
-        // Start the bouncy animation sequence
-        requestAnimationFrame(() => {
-            // First bounce - overshoot with fast timing
-            element.style.transition = 'all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            element.style.opacity = '1';
-            element.style.transform = 'scale(1.08) translateY(-3px)';
+        if (!uniqueResultsElement) {
+            // Create the element if it doesn't exist
+            uniqueResultsElement = document.createElement('span');
+            uniqueResultsElement.id = 'unique-results-count';
+            uniqueResultsElement.className = 'ml-2 text-xs text-gray-600 bg-blue-100 px-2 py-1 rounded-full';
             
-            // Second bounce - settle down
-            setTimeout(() => {
-                element.style.transition = 'all 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                element.style.transform = 'scale(0.98) translateY(2px)';
-                
-                // Final settle - perfect position
-                setTimeout(() => {
-                    element.style.transition = 'all 0.1s ease-out';
-                    element.style.transform = 'scale(1) translateY(0px)';
-                    
-                    // Clear the animation lock after everything is done
-                    setTimeout(() => {
-                        element.dataset.animating = 'false';
-                    }, 100);
-                }, 120);
-            }, 150);
-        });
+            // Insert it after the main results counter
+            const resultsCounter = this.elements.resultsCounter;
+            if (resultsCounter) {
+                resultsCounter.appendChild(uniqueResultsElement);
+            }
+        }
+        
+        // Update the content
+        if (uniqueResultsCount > 0) {
+            uniqueResultsElement.textContent = `${uniqueResultsCount}`;
+            uniqueResultsElement.style.display = 'inline';
+        } else {
+            uniqueResultsElement.style.display = 'none';
+        }
     }
 
     /**
-     * Hide element with smooth animation
-     * @param {HTMLElement} element - Element to hide
+     * Show element immediately without animation
      */
-    hideElementWithAnimation(element) {
+    showElement(element) {
         if (!element) return;
-        
-        // Add animation classes for hiding
-        element.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
-        element.classList.add('opacity-0', 'scale-95', '-translate-y-2');
-        
-        // Hide element after animation completes
-        setTimeout(() => {
-            if (element.classList.contains('opacity-0')) {
-                element.classList.add('hidden');
-            }
-        }, 300); // Match the transition duration
+        element.classList.remove('hidden');
+        element.style.opacity = '1';
+    }
+
+    /**
+     * Hide element immediately without animation
+     */
+    hideElement(element) {
+        if (!element) return;
+        element.classList.add('hidden');
+        element.style.opacity = '0';
     }
 
     /**
@@ -262,7 +274,7 @@ export class NavBarRenderer {
         // Create popup with high z-index to appear over everything
         const popup = document.createElement('div');
         popup.id = 'active-filters-popup';
-        popup.className = 'fixed p-2 w-72 max-w-sm bg-white rounded-lg shadow-2xl border border-gray-200 transform transition-all duration-300 translate-y-4 opacity-0 max-h-96 overflow-hidden';
+        popup.className = 'fixed p-2 w-72 max-w-sm bg-white rounded-lg shadow-2xl border border-gray-200 max-h-96 overflow-hidden';
         popup.style.zIndex = '9999'; // Very high z-index to appear over everything
         
         // Position popup exactly over the badge
@@ -279,9 +291,9 @@ export class NavBarRenderer {
         const header = document.createElement('div');
         header.className = 'flex items-center justify-between mb-2';
         header.innerHTML = `
-            <h3 class="p-2 text-sm font-semibold text-gray-800">Filtri Attivi</h3>
-            <button id="close-filters-popup" class="absolute top-2 right-2 p-1.5 bg-pink-100 hover:bg-pink-200 active:bg-pink-200 rounded-full text-red-500 shadow-md hover:shadow-lg transition-all duration-200 group">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 group-hover:rotate-90 transition-transform duration-200">
+            <h3 class="p-2 text-sm font-semibold text-gray-800 bg-primary-500">Filtri Attivi</h3>
+            <button id="close-filters-popup" class="absolute top-2 right-2 p-1.5 bg-pink-100 hover:bg-pink-200 active:bg-pink-200 rounded-full text-red-500 shadow-md hover:shadow-lg group">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
@@ -301,12 +313,6 @@ export class NavBarRenderer {
         
         // Add to DOM
         document.body.appendChild(popup);
-
-        // Animate in
-        requestAnimationFrame(() => {
-            popup.classList.remove('translate-y-4', 'opacity-0');
-            popup.classList.add('translate-y-0', 'opacity-100');
-        });
 
         // Bind close events and popup-specific clear all button
         this.bindPopupEvents(popup);
@@ -330,14 +336,14 @@ export class NavBarRenderer {
         // Add search query if present with enhanced styling
         if (this.currentQuery && this.currentQuery.trim()) {
             content += `
-                <div class="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+                <div class="mb-3 p-3 rounded-lg bg-primary-50 border border-primary-100">
                     <div class="flex items-center">
-                        <svg class="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-primary-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                         <div class="flex-1 min-w-0">
-                            <span class="text-sm font-medium text-blue-700">Ricerca:</span>
-                            <span class="text-sm text-blue-600 ml-1 font-mono bg-blue-100 px-2 py-1 rounded text-xs">"${this.escapeHtml(this.currentQuery)}"</span>
+                            <span class="text-sm font-medium text-primary-700">Ricerca:</span>
+                            <span class="text-sm text-primary-600 ml-1 font-mono bg-primary-100 px-2 py-1 rounded text-xs">"${this.escapeHtml(this.currentQuery)}"</span>
                         </div>
                     </div>
                 </div>
@@ -410,7 +416,7 @@ export class NavBarRenderer {
                     </svg>`;
                 
                 content += `
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${bgColor} transition-all duration-200 hover:shadow-sm">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${bgColor} hover:shadow-sm">
                         ${icon}
                         ${this.escapeHtml(item.value)}
                     </span>
@@ -477,13 +483,8 @@ export class NavBarRenderer {
      */
     hideActiveFiltersPopup() {
         const popup = document.getElementById('active-filters-popup');
-        if (popup) {
-            popup.classList.add('translate-y-4', 'opacity-0');
-            setTimeout(() => {
-                if (popup.parentNode) {
-                    popup.parentNode.removeChild(popup);
-                }
-            }, 300);
+        if (popup && popup.parentNode) {
+            popup.parentNode.removeChild(popup);
         }
     }
 
@@ -521,10 +522,8 @@ export class NavBarRenderer {
             }
         };
         
-        // Add click handler after a short delay to prevent immediate closing
-        setTimeout(() => {
-            document.addEventListener('click', outsideClickHandler);
-        }, 100);
+        // Add click handler immediately
+        document.addEventListener('click', outsideClickHandler);
     }
 
     /**
@@ -546,18 +545,18 @@ export class NavBarRenderer {
         });
 
         // Map center handler
-        this.elements.mapCenterBtn.addEventListener('click', () => {
+        this.elements.layerButton.addEventListener('click', () => {
             this.handleMapCenter();
         });
 
         // Legend toggle handlers
-        this.elements.toggleLegendBtn.addEventListener('click', () => {
-            this.toggleLegend();
-        });
+        // this.elements.toggleLegendBtn.addEventListener('click', () => {
+        //     this.toggleLegend();
+        // });
 
-        this.elements.closeLegendBtn.addEventListener('click', () => {
-            this.closeLegend();
-        });
+        // this.elements.closeLegendBtn.addEventListener('click', () => {
+        //     this.closeLegend();
+        // });
 
         // Active filters badge click handler - show popup
         if (this.elements.activeFiltersBadge) {
@@ -665,60 +664,60 @@ export class NavBarRenderer {
     /**
      * Toggle the map legend visibility
      */
-    toggleLegend() {
-        const isHidden = this.elements.mapLegend.classList.contains('legend-hidden');
-        this.elements.mapLegend.classList.toggle('legend-hidden');
-        this.elements.toggleLegendBtn.classList.toggle('active', isHidden);
+    // toggleLegend() {
+    //     const isHidden = this.elements.mapLegend.classList.contains('legend-hidden');
+    //     this.elements.mapLegend.classList.toggle('legend-hidden');
+    //     this.elements.toggleLegendBtn.classList.toggle('active', isHidden);
 
-        // Emit custom event
-        this.emitEvent('legendToggled', { isVisible: isHidden });
-    }
+    //     // Emit custom event
+    //     this.emitEvent('legendToggled', { isVisible: isHidden });
+    // }
 
     /**
      * Close the map legend
      */
-    closeLegend() {
-        this.elements.mapLegend.classList.add('legend-hidden');
-        this.elements.toggleLegendBtn.classList.remove('active');
+    // closeLegend() {
+    //     this.elements.mapLegend.classList.add('legend-hidden');
+    //     this.elements.toggleLegendBtn.classList.remove('active');
 
-        // Emit custom event
-        this.emitEvent('legendClosed');
-    }
+    //     // Emit custom event
+    //     this.emitEvent('legendClosed');
+    // }
 
     /**
      * Update the map legend with new items
      * @param {Array} legendItems - Array of legend items with color, label, count, and optional onClick
      */
-    updateMapLegend(legendItems) {
-        const legendContent = document.querySelector('.map-legend-content');
-        if (!legendContent) return;
+    // updateMapLegend(legendItems) {
+    //     const legendContent = document.querySelector('.map-legend-content');
+    //     if (!legendContent) return;
 
-        legendContent.innerHTML = '';
+    //     legendContent.innerHTML = '';
         
-        legendItems.forEach((item, index) => {
-            const legendItem = document.createElement('div');
-            legendItem.className = 'legend-item flex items-center p-2 rounded-lg cursor-pointer';
-            legendItem.dataset.legendIndex = index;
+    //     legendItems.forEach((item, index) => {
+    //         const legendItem = document.createElement('div');
+    //         legendItem.className = 'legend-item flex items-center p-2 rounded-lg cursor-pointer';
+    //         legendItem.dataset.legendIndex = index;
             
-            legendItem.innerHTML = `
-                <div class="w-4 h-4 rounded-full mr-3 flex-shrink-0" style="background-color: ${item.color}"></div>
-                <span class="text-sm text-gray-700 flex-1">${item.label}</span>
-                ${item.count !== undefined ? `<span class="text-xs text-gray-500 ml-2">${item.count}</span>` : ''}
-            `;
+    //         legendItem.innerHTML = `
+    //             <div class="w-4 h-4 rounded-full mr-3 flex-shrink-0" style="background-color: ${item.color}"></div>
+    //             <span class="text-sm text-gray-700 flex-1">${item.label}</span>
+    //             ${item.count !== undefined ? `<span class="text-xs text-gray-500 ml-2">${item.count}</span>` : ''}
+    //         `;
             
-            // Add click handler if provided
-            if (item.onClick && typeof item.onClick === 'function') {
-                legendItem.addEventListener('click', (e) => {
-                    item.onClick(item, index, e);
-                });
-            }
+    //         // Add click handler if provided
+    //         if (item.onClick && typeof item.onClick === 'function') {
+    //             legendItem.addEventListener('click', (e) => {
+    //                 item.onClick(item, index, e);
+    //             });
+    //         }
             
-            legendContent.appendChild(legendItem);
-        });
+    //         legendContent.appendChild(legendItem);
+    //     });
 
-        // Emit custom event
-        this.emitEvent('legendUpdated', { items: legendItems });
-    }
+    //     // Emit custom event
+    //     this.emitEvent('legendUpdated', { items: legendItems });
+    // }
 
     /**
      * Setup responsive behavior for mobile devices
@@ -746,9 +745,10 @@ export class NavBarRenderer {
         return {
             activeFiltersCount: this.activeFiltersCount,
             resultsCount: this.resultsCount,
+            uniqueResultsCount: this.uniqueResultsCount,
             isFiltersOpen: !this.elements.filtersPanel.classList.contains('panel-closed'),
             isResultsOpen: !this.elements.resultsPanel.classList.contains('panel-closed-right'),
-            isLegendVisible: !this.elements.mapLegend.classList.contains('legend-hidden'),
+            // isLegendVisible: !this.elements.mapLegend.classList.contains('legend-hidden'),
             currentFilters: { ...this.currentFilters },
             currentQuery: this.currentQuery
         };
@@ -781,12 +781,12 @@ export class NavBarRenderer {
             }
         }
         
-        if (state.isLegendVisible !== undefined) {
-            const isCurrentlyVisible = !this.elements.mapLegend.classList.contains('legend-hidden');
-            if (state.isLegendVisible !== isCurrentlyVisible) {
-                this.toggleLegend();
-            }
-        }
+        // if (state.isLegendVisible !== undefined) {
+        //     const isCurrentlyVisible = !this.elements.mapLegend.classList.contains('legend-hidden');
+        //     if (state.isLegendVisible !== isCurrentlyVisible) {
+        //         this.toggleLegend();
+        //     }
+        // }
 
         if (state.currentFilters !== undefined) {
             this.currentFilters = { ...state.currentFilters };
@@ -838,27 +838,18 @@ export class NavBarRenderer {
     showNotification(message, type = 'info', duration = 3000) {
         // Create notification element
         const notification = document.createElement('div');
-        notification.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg transition-all duration-300 ${this.getNotificationClasses(type)}`;
+        notification.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg ${this.getNotificationClasses(type)}`;
+        notification.style.opacity = '1';
         notification.textContent = message;
         
         // Add to DOM
         document.body.appendChild(notification);
         
-        // Animate in
-        setTimeout(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateX(-50%) translateY(0)';
-        }, 10);
-        
         // Remove after duration
         setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(-50%) translateY(-20px)';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
         }, duration);
     }
 
@@ -872,7 +863,7 @@ export class NavBarRenderer {
             success: 'bg-green-500 text-white',
             error: 'bg-red-500 text-white',
             warning: 'bg-yellow-500 text-white',
-            info: 'bg-blue-500 text-white'
+            info: 'bg-primary-500 text-white'
         };
         return classes[type] || classes.info;
     }
@@ -893,31 +884,6 @@ export class NavBarRenderer {
         this.currentQuery = '';
         this.config = null;
         this.isInitialized = false;
-    }
-
-    /**
-     * Force update the interface state - useful for external resets
-     * @param {Object} newFilters - New filters state
-     * @param {string} newQuery - New query state
-     * @param {number} newResultsCount - New results count
-     */
-    forceUpdate(newFilters = {}, newQuery = '', newResultsCount = 0) {
-        this.currentFilters = { ...newFilters };
-        this.currentQuery = newQuery;
-        
-        const filtersCount = this.calculateActiveFiltersCount(newFilters);
-        this.updateActiveFiltersCount(filtersCount);
-        this.updateResultsCount(newResultsCount);
-        
-        // Close any open popups
-        this.hideActiveFiltersPopup();
-        
-        // If filters are empty, reset the interface
-        if (Object.keys(newFilters).length === 0 && !newQuery) {
-            setTimeout(() => {
-                this.resetFacetsInterface();
-            }, 50);
-        }
     }
 
     /**
@@ -1037,6 +1003,468 @@ export class NavBarRenderer {
         
         highlight.style.left = `${Math.max(0, leftPos)}%`;
         highlight.style.width = `${Math.max(0, Math.min(100, width))}%`;
+    }
+
+    initializeLayerButton(config) {
+        const layerButton = document.querySelector('#map-layer-selector');
+        if (!layerButton) return;
+
+        // Get available layers from config
+        const layers = config.map.tileLayers;
+        
+        // Track current layer
+        let currentTileLayer = null;
+        let currentLayerName = 'Default';
+        
+        // Make button clickable
+        layerButton.style.cursor = 'pointer';
+        layerButton.title = 'Clicca per cambiare layer';
+        
+        // Add button click handler
+        layerButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showLayerSelectionPopup();
+        });
+        
+        // Layer selection popup
+        this.showLayerSelectionPopup = () => {
+            // Check if popup already exists - if so, close it
+            const existingPopup = document.getElementById('layer-selection-popup');
+            if (existingPopup) {
+                this.hideLayerSelectionPopup();
+                return;
+            }
+
+            // Get button position for precise positioning
+            const buttonRect = layerButton.getBoundingClientRect();
+            
+            // Create popup with high z-index to appear over everything
+            const popup = document.createElement('div');
+            popup.id = 'layer-selection-popup';
+            popup.className = 'fixed p-2 w-72 max-w-sm bg-white rounded-lg shadow-2xl border border-gray-200 max-h-96 overflow-hidden';
+            popup.style.zIndex = '9999';
+            
+            // Position popup exactly over the button
+            popup.style.left = `${buttonRect.left}px`;
+            popup.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
+            
+            // Adjust if popup would go off-screen
+            const popupWidth = 288;
+            if (buttonRect.left + popupWidth > window.innerWidth) {
+                popup.style.left = `${window.innerWidth - popupWidth - 16}px`;
+            }
+            
+            // Popup header
+            const header = document.createElement('div');
+            header.className = 'flex items-center justify-between mb-2';
+            header.innerHTML = `
+                <h3 class="p-2 text-sm font-semibold text-gray-800">Seleziona Layer</h3>
+                <button id="close-layer-popup" class="absolute top-2 right-2 p-1.5 bg-pink-100 hover:bg-pink-200 active:bg-pink-200 rounded-full text-red-500 shadow-md hover:shadow-lg group">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+
+            // Popup content
+            const content = document.createElement('div');
+            content.className = 'space-y-1 max-h-64 overflow-y-auto overflow-x-hidden mb-3 p-3 rounded-lg bg-gray-50 border border-gray-200';
+            
+            // Build layers content
+            const layersContent = this.buildLayersContent(layers);
+            content.innerHTML = layersContent;
+
+            // Assemble popup
+            popup.appendChild(header);
+            popup.appendChild(content);
+            
+            // Add to DOM
+            document.body.appendChild(popup);
+
+            // Bind close events and layer selection
+            this.bindLayerPopupEvents(popup);
+        };
+
+        // Build layers content with checkmarks
+        this.buildLayersContent = (layers) => {
+            let content = '';
+            
+            for (let layerName in layers) {
+                const isSelected = layerName === currentLayerName;
+                const layerData = layers[layerName];
+                
+                content += `
+                    <div class="layer-item flex items-center justify-between p-2 rounded hover:bg-gray-100 cursor-pointer" 
+                        data-layer-name="${layerName}" 
+                        data-layer-url="${layerData.tileLayer}"
+                        data-layer-attribution="${layerData.attribution}">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-700">${layerName}</span>
+                        </div>
+                        <div class="flex items-center">
+                            ${isSelected ? `
+                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return content;
+        };
+
+        // Bind popup events
+        this.bindLayerPopupEvents = (popup) => {
+            // Close button
+            const closeButton = popup.querySelector('#close-layer-popup');
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    this.hideLayerSelectionPopup();
+                });
+            }
+
+            // Layer selection
+            const layerItems = popup.querySelectorAll('.layer-item');
+            layerItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const layerName = item.dataset.layerName;
+                    const layerUrl = item.dataset.layerUrl;
+                    const attribution = item.dataset.layerAttribution;
+                    
+                    selectLayer(layerName, layerUrl, attribution);
+                    this.hideLayerSelectionPopup();
+                });
+            });
+
+            // Close on outside click
+            document.addEventListener('click', this.handleOutsideClick);
+            
+            // Close on escape key
+            document.addEventListener('keydown', this.handleEscapeKey);
+        };
+
+        // Hide popup
+        this.hideLayerSelectionPopup = () => {
+            const popup = document.getElementById('layer-selection-popup');
+            if (popup) {
+                popup.remove();
+                document.removeEventListener('click', this.handleOutsideClick);
+                document.removeEventListener('keydown', this.handleEscapeKey);
+            }
+        };
+
+        // Handle outside click
+        this.handleOutsideClick = (e) => {
+            const popup = document.getElementById('layer-selection-popup');
+            if (popup && !popup.contains(e.target) && !layerButton.contains(e.target)) {
+                this.hideLayerSelectionPopup();
+            }
+        };
+
+        // Handle escape key
+        this.handleEscapeKey = (e) => {
+            if (e.key === 'Escape') {
+                this.hideLayerSelectionPopup();
+            }
+        };
+        
+        // Layer selection function
+        function selectLayer(layerName, layerUrl, attribution) {
+            // Update button text
+            updateLayerButtonText(layerName);
+            
+            // Remove current tile layer if it exists
+            if (currentTileLayer) {
+                window.map.removeLayer(currentTileLayer);
+            }
+            
+            // Add new tile layer with the correct attribution
+            currentTileLayer = L.tileLayer(layerUrl, {
+                attribution: attribution,
+                maxZoom: 18
+            });
+            
+            currentTileLayer.addTo(window.map);
+            
+            // Store current layer info
+            currentLayerName = layerName;
+            
+            // Trigger layer change event
+            console.log(`Layer changed to: ${layerName}`);
+            window.dispatchEvent(new CustomEvent('layerChanged', {
+                detail: { 
+                    layerName: layerName,
+                    layerUrl: layerUrl,
+                    attribution: attribution
+                }
+            }));
+        }
+        
+        function updateLayerButtonText(layerName) {
+            // Update button text while keeping any icons
+            const icon = layerButton.querySelector('i') || layerButton.querySelector('.icon');
+            
+            if (icon) {
+                layerButton.innerHTML = '';
+                layerButton.appendChild(icon);
+                layerButton.appendChild(document.createTextNode('Strati cartografici'));
+            } else {
+                layerButton.textContent = layerName;
+            }
+        }
+        
+        // Set initial button text
+        updateLayerButtonText(currentLayerName);
+    }
+
+    /** HANDLE MARKERS CHANGES */
+    /* NOTE THAT THE 3 LOGICS TO ACTUALLY CHANGE THE MAP MARKERS ARE IMPORTED FROM INITMAP MODULE*/
+    initializeMarkersSelector() {
+        const markersButton = document.querySelector('#map-markers-selector');
+        if (!markersButton) return;
+
+        // Available marker types
+        const markerTypes = {
+            'clusters': {
+                name: 'Clusters geografici',
+                description: 'Raggruppamenti dinamici'
+            },
+            'pins': {
+                name: 'Pin con numeri',
+                description: 'Pin con conteggio occorrenze'
+            },
+            'circles': {
+                name: 'Cerchi Proporzionali',
+                description: 'Cerchi con diametro basato su occorrenze'
+            }
+        };
+        
+        // Track current marker type
+        let currentMarkerType = 'clusters'; // Default to clusters
+        
+        // Make button clickable
+        markersButton.style.cursor = 'pointer';
+        markersButton.title = 'Clicca per cambiare tipo di marker';
+        
+        // Add button click handler
+        markersButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showMarkersSelectionPopup();
+        });
+        
+        // Markers selection popup
+        this.showMarkersSelectionPopup = () => {
+            // Check if popup already exists - if so, close it
+            const existingPopup = document.getElementById('markers-selection-popup');
+            if (existingPopup) {
+                this.hideMarkersSelectionPopup();
+                return;
+            }
+
+            // Get button position for precise positioning
+            const buttonRect = markersButton.getBoundingClientRect();
+            
+            // Create popup with high z-index to appear over everything
+            const popup = document.createElement('div');
+            popup.id = 'markers-selection-popup';
+            popup.className = 'fixed p-2 w-72 max-w-sm bg-white rounded-lg shadow-2xl border border-gray-200 max-h-96 overflow-hidden';
+            popup.style.zIndex = '9999';
+            
+            // Position popup exactly over the button
+            popup.style.left = `${buttonRect.left}px`;
+            popup.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
+            
+            // Adjust if popup would go off-screen
+            const popupWidth = 288;
+            if (buttonRect.left + popupWidth > window.innerWidth) {
+                popup.style.left = `${window.innerWidth - popupWidth - 16}px`;
+            }
+            
+            // Popup header
+            const header = document.createElement('div');
+            header.className = 'flex items-center justify-between mb-2';
+            header.innerHTML = `
+                <h3 class="p-2 text-sm font-semibold text-gray-800">Tipo di Marker</h3>
+                <button id="close-markers-popup" class="absolute top-2 right-2 p-1.5 bg-pink-100 hover:bg-pink-200 active:bg-pink-200 rounded-full text-red-500 shadow-md hover:shadow-lg group">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+
+            // Popup content
+            const content = document.createElement('div');
+            content.className = 'space-y-1 max-h-64 overflow-y-auto overflow-x-hidden';
+            
+            // Build markers content
+            const markersContent = this.buildMarkersContent(markerTypes);
+            content.innerHTML = markersContent;
+
+            // Assemble popup
+            popup.appendChild(header);
+            popup.appendChild(content);
+            
+            // Add to DOM
+            document.body.appendChild(popup);
+
+            // Bind close events and marker selection
+            this.bindMarkersPopupEvents(popup);
+        };
+
+        // Build markers content with checkmarks and icons
+        this.buildMarkersContent = (markerTypes) => {
+            let content = '';
+            
+            for (let markerType in markerTypes) {
+                const isSelected = markerType === currentMarkerType;
+                const markerData = markerTypes[markerType];
+                
+                // Different icons for each marker type
+                let iconSvg = '';
+                switch(markerType) {
+                    case 'clusters':
+                        iconSvg = `
+                            <svg class="w-4 h-4 text-primary-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"></path>
+                            </svg>
+                        `;
+                        break;
+                    case 'pins':
+                        iconSvg = `
+                            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
+                            </svg>
+                        `;
+                        break;
+                    case 'circles':
+                        iconSvg = `
+                            <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"></path>
+                            </svg>
+                        `;
+                        break;
+                }
+                
+                content += `
+                    <div class="marker-item flex items-center justify-between p-2 rounded hover:bg-gray-50 hover:shadow-md cursor-pointer" 
+                         data-marker-type="${markerType}">
+                        <div class="flex items-center space-x-3">
+                            ${iconSvg}
+                            <div>
+                                <span class="text-sm font-medium text-gray-700">${markerData.name}</span>
+                                <p class="text-xs text-gray-500">${markerData.description}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            ${isSelected ? `
+                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return content;
+        };
+
+        // Bind popup events
+        this.bindMarkersPopupEvents = (popup) => {
+            // Close button
+            const closeButton = popup.querySelector('#close-markers-popup');
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    this.hideMarkersSelectionPopup();
+                });
+            }
+
+            // Marker selection
+            const markerItems = popup.querySelectorAll('.marker-item');
+            markerItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const markerType = item.dataset.markerType;
+                    selectMarkerType(markerType);
+                    this.hideMarkersSelectionPopup();
+                });
+            });
+
+            // Close on outside click
+            document.addEventListener('click', this.handleMarkersOutsideClick);
+            
+            // Close on escape key
+            document.addEventListener('keydown', this.handleMarkersEscapeKey);
+        };
+
+        // Hide popup
+        this.hideMarkersSelectionPopup = () => {
+            const popup = document.getElementById('markers-selection-popup');
+            if (popup) {
+                popup.remove();
+                document.removeEventListener('click', this.handleMarkersOutsideClick);
+                document.removeEventListener('keydown', this.handleMarkersEscapeKey);
+            }
+        };
+
+        // Handle outside click
+        this.handleMarkersOutsideClick = (e) => {
+            const popup = document.getElementById('markers-selection-popup');
+            if (popup && !popup.contains(e.target) && !markersButton.contains(e.target)) {
+                this.hideMarkersSelectionPopup();
+            }
+        };
+
+        // Handle escape key
+        this.handleMarkersEscapeKey = (e) => {
+            if (e.key === 'Escape') {
+                this.hideMarkersSelectionPopup();
+            }
+        };
+        
+        // Marker type selection function
+        const selectMarkerType = (markerType) => {
+            // Update button text
+            updateMarkersButtonText(markerTypes[markerType].name);
+            
+            // Store current marker type
+            currentMarkerType = markerType;
+            
+            // Apply the selected marker type to the map via the global function
+            if (window.switchMarkerType) {
+                window.switchMarkerType(markerType);
+            } else if (this.mapInstance && this.mapInstance.switchMarkerType) {
+                this.mapInstance.switchMarkerType(markerType);
+            } else {
+                console.warn('No switchMarkerType function available');
+            }
+            
+            // Trigger marker type change event
+            console.log(`Marker type changed to: ${markerType}`);
+            window.dispatchEvent(new CustomEvent('markerTypeChanged', {
+                detail: { 
+                    markerType: markerType,
+                    markerName: markerTypes[markerType].name
+                }
+            }));
+        };
+        
+        const updateMarkersButtonText = (markerName) => {
+            // Update button text while keeping any icons
+            const icon = markersButton.querySelector('i') || markersButton.querySelector('.icon');
+            
+            if (icon) {
+                markersButton.innerHTML = '';
+                markersButton.appendChild(icon);
+                markersButton.appendChild(document.createTextNode(` ${markerName}`));
+            } else {
+                markersButton.textContent = markerName;
+            }
+        };
+        
+        // Set initial button text
+        updateMarkersButtonText(markerTypes[currentMarkerType].name);
     }
 }
 

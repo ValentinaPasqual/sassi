@@ -25,16 +25,16 @@ export class ModalRenderer {
   }
 
   _getCompleteWorkData(idOpera) {
-    const allEntriesForWork = this.items.filter(item => item.ID_opera === idOpera);
+    const allEntriesForWork = this.items.filter(item => item.pivot_ID === idOpera);
     if (allEntriesForWork.length === 0) return null;
 
     const firstEntry = allEntriesForWork[0];
     const completeWork = {
-      ID_opera: idOpera,
-      Titolo: firstEntry.Titolo,
-      Autore: firstEntry.Autore,
-      Anno: firstEntry.Anno,
-      "Spazi geografici": [],
+      pivot_ID: idOpera,
+      Title: firstEntry[window.ledaSearch.config.result_cards.card_title],
+      Subtitle: firstEntry[window.ledaSearch.config.result_cards.card_subtitle],
+      Subtitle2: firstEntry[window.ledaSearch.config.result_cards.card_subtitle_2],
+      "Location": [],
       coordinates: [],
       allEntries: allEntriesForWork,
       geodataBySpace: new Map()
@@ -42,10 +42,10 @@ export class ModalRenderer {
 
     const spaceCoordMap = new Map();
     allEntriesForWork.forEach(item => {
-      if (item["Spazi geografici"]) {
-        const spaces = Array.isArray(item["Spazi geografici"]) 
-          ? item["Spazi geografici"] 
-          : [item["Spazi geografici"]];
+      if (item["Location"]) {
+        const spaces = Array.isArray(item["Location"]) 
+          ? item["Location"] 
+          : [item["Location"]];
         
         spaces.forEach((space, spaceIndex) => {
           if (!spaceCoordMap.has(space)) {
@@ -69,7 +69,7 @@ export class ModalRenderer {
       }
     });
 
-    completeWork["Spazi geografici"] = Array.from(spaceCoordMap.keys());
+    completeWork["Location"] = Array.from(spaceCoordMap.keys());
     completeWork.coordinates = Array.from(spaceCoordMap.values());
     return completeWork;
   }
@@ -102,7 +102,7 @@ export class ModalRenderer {
     // Add search query if present
     if (this.searchState.query && this.searchState.query.trim()) {
       filtersHtml.push(`
-        <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+        <div class="inline-flex items-center gap-2 px-3 py-1 bg-secondary-100 text-secondary-800 rounded-full text-sm font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
             <path fill-rule="evenodd" d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z" clip-rule="evenodd" />
           </svg>
@@ -116,7 +116,7 @@ export class ModalRenderer {
       if (Array.isArray(values) && values.length > 0) {
         values.forEach(value => {
           filtersHtml.push(`
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
                 <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1a1 1 0 0 1-.293.707L10 8.414V12a1 1 0 0 1-.293.707l-2 2A1 1 0 0 1 6 14v-5.586L2.293 4.707A1 1 0 0 1 2 4V3Z" />
               </svg>
@@ -388,7 +388,7 @@ export class ModalRenderer {
       // Update data and render new content for next slide
       this.currentModalIndex = newIndex;
       const currentWork = this.allWorks[this.currentModalIndex];
-      const workData = this._getCompleteWorkData(currentWork.ID_opera);
+      const workData = this._getCompleteWorkData(currentWork.pivot_ID);
       
       if (workData) {
         nextContent.innerHTML = this._renderMainCard(workData);
@@ -471,8 +471,8 @@ export class ModalRenderer {
   _updatePreviewCards() {
     const prevWork = this.currentModalIndex > 0 ? this.allWorks[this.currentModalIndex - 1] : null;
     const nextWork = this.currentModalIndex < this.allWorks.length - 1 ? this.allWorks[this.currentModalIndex + 1] : null;
-    const prevWorkData = prevWork ? this._getCompleteWorkData(prevWork.ID_opera) : null;
-    const nextWorkData = nextWork ? this._getCompleteWorkData(nextWork.ID_opera) : null;
+    const prevWorkData = prevWork ? this._getCompleteWorkData(prevWork.pivot_ID) : null;
+    const nextWorkData = nextWork ? this._getCompleteWorkData(nextWork.pivot_ID) : null;
     
     // Update left preview
     const leftPanel = document.querySelector('.left-nav-panel .preview-card');
@@ -480,10 +480,10 @@ export class ModalRenderer {
       if (prevWorkData) {
         leftPanel.className = 'preview-card text-center bg-white/90 backdrop-blur-sm rounded-xl shadow-lg ring-1 ring-gray-200/50 border border-gray-200/30 px-4 py-6 w-48 transition-all duration-300 hover:shadow-xl hover:-translate-y-1';
         leftPanel.innerHTML = `
-          <div class="w-12 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full mx-auto mb-4"></div>
-          <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${prevWorkData.Titolo}</h4>
-          <p class="text-xs text-gray-600 font-medium">${prevWorkData.Autore}</p>
-          <p class="text-xs text-gray-500">(${prevWorkData.Anno})</p>
+          <div class="w-12 h-1 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-full mx-auto mb-4"></div>
+          <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${prevWorkData.Title}</h4>
+          <p class="text-xs text-gray-600 font-medium">${prevWorkData.Subtitle}</p>
+          <p class="text-xs text-gray-500">(${prevWorkData.Subtitle2})</p>
         `;
       } else {
         leftPanel.className = 'preview-card text-center px-4 py-6 bg-gray-50/80 backdrop-blur-sm rounded-xl border-2 border-dashed border-gray-300/50 w-48';
@@ -497,10 +497,10 @@ export class ModalRenderer {
       if (nextWorkData) {
         rightPanel.className = 'preview-card text-center px-4 py-6 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg ring-1 ring-gray-200/50 border border-gray-200/30 w-48 transition-all duration-300 hover:shadow-xl hover:-translate-y-1';
         rightPanel.innerHTML = `
-          <div class="w-12 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full mx-auto mb-4"></div>
-          <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${nextWorkData.Titolo}</h4>
-          <p class="text-xs text-gray-600 font-medium">${nextWorkData.Autore}</p>
-          <p class="text-xs text-gray-500">(${nextWorkData.Anno})</p>
+          <div class="w-12 h-1 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-full mx-auto mb-4"></div>
+          <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${nextWorkData.Title}</h4>
+          <p class="text-xs text-gray-600 font-medium">${nextWorkData.Subtitle}</p>
+          <p class="text-xs text-gray-500">(${nextWorkData.Subtitle2})</p>
         `;
       } else {
         rightPanel.className = 'preview-card text-center px-4 py-6 bg-gray-50/80 backdrop-blur-sm rounded-xl border-2 border-dashed border-gray-300/50 w-48';
@@ -535,12 +535,12 @@ export class ModalRenderer {
     }
 
     const currentWork = this.allWorks[this.currentModalIndex];
-    const workData = this._getCompleteWorkData(currentWork.ID_opera);
+    const workData = this._getCompleteWorkData(currentWork.pivot_ID);
     
     const prevWork = this.currentModalIndex > 0 ? this.allWorks[this.currentModalIndex - 1] : null;
     const nextWork = this.currentModalIndex < this.allWorks.length - 1 ? this.allWorks[this.currentModalIndex + 1] : null;
-    const prevWorkData = prevWork ? this._getCompleteWorkData(prevWork.ID_opera) : null;
-    const nextWorkData = nextWork ? this._getCompleteWorkData(nextWork.ID_opera) : null;
+    const prevWorkData = prevWork ? this._getCompleteWorkData(prevWork.pivot_ID) : null;
+    const nextWorkData = nextWork ? this._getCompleteWorkData(nextWork.pivot_ID) : null;
     
     if (!workData) {
       modalContent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500 text-lg">Dati non disponibili</div>';
@@ -551,7 +551,7 @@ export class ModalRenderer {
       <div class="flex h-full w-full">
         <!-- Enhanced Left Navigation Panel with fixed width -->
         <div class="left-nav-panel flex flex-col items-center justify-center p-6 space-y-6 w-64 flex-shrink-0">
-          <button id="prev-work-btn" class="group p-4 bg-white/90 hover:bg-white active:bg-gray-50 rounded-2xl text-gray-600 hover:text-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl ring-1 ring-gray-200/50 hover:ring-blue-200 backdrop-blur-sm border border-gray-200/30 ${this.currentModalIndex === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:-translate-y-1'}" ${this.currentModalIndex === 0 ? 'disabled' : ''}>
+          <button id="prev-work-btn" class="group p-4 bg-white/90 hover:bg-white active:bg-gray-50 rounded-2xl text-gray-600 hover:text-secondary-600 transition-all duration-300 shadow-lg hover:shadow-xl ring-1 ring-gray-200/50 hover:ring-secondary-200 backdrop-blur-sm border border-gray-200/30 ${this.currentModalIndex === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:-translate-y-1'}" ${this.currentModalIndex === 0 ? 'disabled' : ''}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-7 h-7 group-hover:-translate-x-1 transition-transform duration-300">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
@@ -559,10 +559,10 @@ export class ModalRenderer {
           
           ${prevWorkData ? `
             <div class="preview-card text-center bg-white/90 backdrop-blur-sm rounded-xl shadow-lg ring-1 ring-gray-200/50 border border-gray-200/30 px-4 py-6 w-48 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-              <div class="w-12 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full mx-auto mb-4"></div>
-              <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${prevWorkData.Titolo}</h4>
-              <p class="text-xs text-gray-600 font-medium">${prevWorkData.Autore}</p>
-              <p class="text-xs text-gray-500">(${prevWorkData.Anno})</p>
+              <div class="w-12 h-1 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-full mx-auto mb-4"></div>
+              <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${prevWorkData.Title}</h4>
+              <p class="text-xs text-gray-600 font-medium">${prevWorkData.Subtitle}</p>
+              <p class="text-xs text-gray-500">(${prevWorkData.Subtitle2})</p>
             </div>
           ` : `
             <div class="preview-card text-center px-4 py-6 bg-gray-50/80 backdrop-blur-sm rounded-xl border-2 border-dashed border-gray-300/50 w-48">
@@ -578,7 +578,7 @@ export class ModalRenderer {
 
         <!-- Enhanced Right Navigation Panel with fixed width -->
         <div class="right-nav-panel flex flex-col items-center justify-center p-6 space-y-6 w-64 flex-shrink-0">
-          <button id="next-work-btn" class="group p-4 bg-white/90 hover:bg-white active:bg-gray-50 rounded-2xl text-gray-600 hover:text-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl ring-1 ring-gray-200/50 hover:ring-blue-200 backdrop-blur-sm border border-gray-200/30 ${this.currentModalIndex === this.allWorks.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:-translate-y-1'}" ${this.currentModalIndex === this.allWorks.length - 1 ? 'disabled' : ''}>
+          <button id="next-work-btn" class="group p-4 bg-white/90 hover:bg-white active:bg-gray-50 rounded-2xl text-gray-600 hover:text-secondary-600 transition-all duration-300 shadow-lg hover:shadow-xl ring-1 ring-gray-200/50 hover:ring-secondary-200 backdrop-blur-sm border border-gray-200/30 ${this.currentModalIndex === this.allWorks.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:-translate-y-1'}" ${this.currentModalIndex === this.allWorks.length - 1 ? 'disabled' : ''}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-7 h-7 group-hover:translate-x-1 transition-transform duration-300">
               <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
@@ -586,10 +586,10 @@ export class ModalRenderer {
           
           ${nextWorkData ? `
             <div class="preview-card text-center px-4 py-6 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg ring-1 ring-gray-200/50 border border-gray-200/30 w-48 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-              <div class="w-12 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full mx-auto mb-4"></div>
-              <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${nextWorkData.Titolo}</h4>
-              <p class="text-xs text-gray-600 font-medium">${nextWorkData.Autore}</p>
-              <p class="text-xs text-gray-500">(${nextWorkData.Anno})</p>
+              <div class="w-12 h-1 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-full mx-auto mb-4"></div>
+              <h4 class="text-sm font-semibold text-gray-800 leading-relaxed mb-2">${nextWorkData.Title}</h4>
+              <p class="text-xs text-gray-600 font-medium">${nextWorkData.Subtitle}</p>
+              <p class="text-xs text-gray-500">(${nextWorkData.Subtitle2})</p>
             </div>
           ` : `
             <div class="preview-card text-center px-4 py-6 bg-gray-50/80 backdrop-blur-sm rounded-xl border-2 border-dashed border-gray-300/50 w-48">
@@ -622,13 +622,13 @@ export class ModalRenderer {
           <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-3 mb-4">
-                <div class="w-1 h-12 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full shadow-sm flex-shrink-0"></div>
+                <div class="w-1 h-12 bg-gradient-to-b from-secondary-500 to-secondary-600 rounded-full shadow-sm flex-shrink-0"></div>
                 <div class="min-w-0 flex-1">
-                  <h1 class="text-3xl font-bold text-gray-900 leading-tight truncate">${work.Titolo}</h1>
+                  <h1 class="text-3xl font-bold text-gray-900 leading-tight truncate">${work.Title}</h1>
                   <div class="flex items-center gap-4 mt-2">
-                    <p class="text-lg text-gray-700 font-medium truncate">${work.Autore}</p>
+                    <p class="text-lg text-gray-700 font-medium truncate">${work.Subtitle}</p>
                     <span class="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>
-                    <p class="text-lg text-gray-600 font-mono flex-shrink-0">${work.Anno}</p>
+                    <p class="text-lg text-gray-600 font-mono flex-shrink-0">${work.Subtitle2}</p>
                   </div>
                 </div>
               </div>
@@ -661,7 +661,7 @@ export class ModalRenderer {
         return `
           <div class="metadata-card group bg-white/90 hover:bg-white backdrop-blur-sm hover:shadow-lg rounded-xl p-5 ring-1 ring-gray-200/50 hover:ring-gray-300/70 transition-all duration-300 border border-gray-200/30 hover:border-gray-300/50 hover:-translate-y-0.5">
             <div class="flex items-center gap-3 mb-3">
-              <div class="w-2 h-2 bg-gradient-to-r from-green-400 to-green-600 rounded-full group-hover:scale-125 transition-transform duration-300 shadow-sm"></div>
+              <div class="w-2 h-2 bg-gradient-to-r from-primary-400 to-primary-600 rounded-full group-hover:scale-125 transition-transform duration-300 shadow-sm"></div>
               <h4 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">${field}</h4>
             </div>
             <div class="text-base text-gray-700 leading-relaxed pl-5">${displayValue}</div>
@@ -674,7 +674,7 @@ export class ModalRenderer {
     return `
       <div>
         <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-green-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-primary-600">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0-1.125.504-1.125 1.125V11.25a9 9 0 0 0-9-9Z" />
           </svg>
           Metadati del catalogo
@@ -687,22 +687,22 @@ export class ModalRenderer {
   }
 
   _renderGeographicalSpaces(work) {
-    if (!work["Spazi geografici"] || work["Spazi geografici"].length === 0) {
+    if (!work["Location"] || work["Location"].length === 0) {
       return `
-        <div class="bg-gradient-to-r from-blue-50/90 to-indigo-50/90 backdrop-blur-sm rounded-2xl p-8 ring-1 ring-blue-200/50 border border-blue-200/30">
+        <div class="bg-gradient-to-r from-secondary-50/90 to-indigo-50/90 backdrop-blur-sm rounded-2xl p-8 ring-1 ring-secondary-200/50 border border-secondary-200/30">
           <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-secondary-600">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
             </svg>
-            Spazi geografici
+            Location
           </h2>
           <div class="text-gray-500 italic">Nessun spazio geografico disponibile</div>
         </div>
       `;
     }
 
-    const spacesHtml = work["Spazi geografici"].map((space, index) => {
+    const spacesHtml = work["Location"].map((space, index) => {
       const coordinates = work.coordinates[index];
       const geodata = work.geodataBySpace.get(space) || {};
       
@@ -724,7 +724,7 @@ export class ModalRenderer {
           
           return `
             <div class="flex items-start gap-3 py-2">
-              <div class="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+              <div class="w-1.5 h-1.5 bg-secondary-400 rounded-full mt-2 flex-shrink-0"></div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 mb-1">
                   <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">${field}</span>
@@ -738,17 +738,17 @@ export class ModalRenderer {
       const hasCoordinates = coordinates && coordinates.lat && coordinates.lng;
       
       return `
-        <div class="space-card bg-white/90 backdrop-blur-sm rounded-xl p-6 ring-1 ring-gray-200/50 hover:ring-blue-300/70 transition-all duration-300 hover:shadow-lg border border-gray-200/30 hover:border-blue-300/50 hover:-translate-y-1">
+        <div class="space-card bg-white/90 backdrop-blur-sm rounded-xl p-6 ring-1 ring-gray-200/50 hover:ring-secondary-300/70 transition-all duration-300 hover:shadow-lg border border-gray-200/30 hover:border-secondary-300/50 hover:-translate-y-1">
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-5 h-5 text-blue-600 flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-5 h-5 text-secondary-600 flex-shrink-0">
                 <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
               </svg>
               <h3 class="text-lg font-semibold text-gray-900">${space}</h3>
             </div>
             
             ${hasCoordinates ? `
-              <button class="map-btn group px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 hover:-translate-y-0.5" 
+              <button class="map-btn group px-4 py-2 text-sm font-medium bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 active:from-secondary-700 active:to-secondary-800 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 hover:-translate-y-0.5" 
                       data-lat="${coordinates.lat}" 
                       data-lng="${coordinates.lng}">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 inline mr-1">
@@ -780,18 +780,18 @@ export class ModalRenderer {
     }).join('');
 
     return `
-      <div class="bg-gradient-to-r from-blue-50/90 to-indigo-50/90 backdrop-blur-sm rounded-2xl p-8 ring-1 ring-blue-200/50 border border-blue-200/30">
+      <div class="bg-gradient-to-r from-secondary-50/90 to-indigo-50/90 backdrop-blur-sm rounded-2xl p-8 ring-1 ring-secondary-200/50 border border-secondary-200/30">
         <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-secondary-600">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
           </svg>
-          Spazi geografici
+          Location
         </h2>
         <div class="grid gap-6">
           ${spacesHtml}
         </div>
-        <div class="mt-6 text-sm text-blue-700 bg-blue-100/80 backdrop-blur-sm rounded-lg p-3 flex items-center gap-2">
+        <div class="mt-6 text-sm text-secondary-700 bg-secondary-100/80 backdrop-blur-sm rounded-lg p-3 flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
             <path fill-rule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0ZM9 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6.75 8a.75.75 0 0 0 0 1.5h.75v1.75a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8.25 8h-1.5Z" clip-rule="evenodd" />
           </svg>

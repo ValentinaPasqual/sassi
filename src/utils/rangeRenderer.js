@@ -1,6 +1,13 @@
 // RangeRenderer.js
+
+import '../styles/tailwind.css'
 export class RangeRenderer {
   
+  constructor() {
+    this.playIntervals = new Map(); // Track play intervals for each facet
+    this.playStates = new Map(); // Track play states for each facet
+  }
+
   /**
    * Renders a bar chart showing the distribution of values
    * @param {HTMLElement} element - The container element for the chart
@@ -34,6 +41,21 @@ export class RangeRenderer {
     // Create the chart and slider structure with improved styling
     sliderContainer.innerHTML = `
       <div class="space-y-3">
+        <!-- Play Controls -->
+        <div class="flex items-center justify-center gap-2 pb-3 border-b border-gray-200">
+          <button id="${facetKey}-play-btn" class="group relative w-8 h-8 bg-gradient-to-r from-primary-400 to-primary-700 text-white text-xs rounded-full transition-colors duration-200 hover:from-primary-600 hover:to-primary-700 shadow-md hover:shadow-lg flex items-center justify-center" type="button">
+            <div class="w-0 h-0 border-l-[5px] border-l-white border-y-[3px] border-y-transparent ml-0.5"></div>
+            <span class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">Play</span>
+          </button>
+          <button id="${facetKey}-pause-btn" class="group relative w-8 h-8 bg-gradient-to-r from-secondary-400 to-secondary-700 text-white text-xs rounded-full transition-colors duration-200 hover:from-secondary-600 hover:to-secondary-700 shadow-md hover:shadow-lg flex items-center justify-center" type="button">
+            <div class="flex gap-0.5">
+              <div class="w-0.5 h-3 bg-white rounded-sm"></div>
+              <div class="w-0.5 h-3 bg-white rounded-sm"></div>
+            </div>
+            <span class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">Pause</span>
+          </button>
+        </div>
+
         <!-- Chart Container -->
         <div class="relative">
           <div id="${facetKey}-chart" class="w-full h-16 mb-3 bg-gray-50 rounded-md p-2"></div>
@@ -56,13 +78,13 @@ export class RangeRenderer {
           <div class="grid grid-cols-2 gap-2">
             <div class="min-w-0">
               <input id="${facetKey}-min-input" type="number"
-                     class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-400 focus:border-blue-400 focus:outline-none"
+                     class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-primary-400 focus:border-primary-400 focus:outline-none"
                      value="${minValue}"
                      placeholder="Min">
             </div>
             <div class="min-w-0">
               <input id="${facetKey}-max-input" type="number"
-                     class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-400 focus:border-blue-400 focus:outline-none"
+                     class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-primary-400 focus:border-primary-400 focus:outline-none"
                      value="${maxValue}"
                      placeholder="Max">
             </div>
@@ -80,11 +102,13 @@ export class RangeRenderer {
     const maxInput = sliderContainer.querySelector(`#${facetKey}-max-input`);
     const currentMinSpan = sliderContainer.querySelector(`#${facetKey}-current-min`);
     const currentMaxSpan = sliderContainer.querySelector(`#${facetKey}-current-max`);
+    const playBtn = sliderContainer.querySelector(`#${facetKey}-play-btn`);
+    const pauseBtn = sliderContainer.querySelector(`#${facetKey}-pause-btn`);
     
     // Track if user is actively typing in inputs
     let isUserTyping = false;
     
-    // Render the bar chart - Fix: Use 'this' instead of 'this.rangeRenderer'
+    // Render the bar chart
     this.renderBarChart(chartElement, buckets, minValue, maxValue);
 
     // Get current filter values or use min/max values
@@ -127,65 +151,6 @@ export class RangeRenderer {
     
     // Add custom styles for the slider
     const style = document.createElement('style');
-    style.textContent = `
-      .custom-slider {
-        height: 4px !important;
-      }
-      
-      .custom-slider .noUi-base,
-      .custom-slider .noUi-connects {
-        height: 4px !important;
-      }
-      
-      .custom-slider .noUi-connect {
-        background: linear-gradient(90deg, #3b82f6, #1d4ed8) !important;
-        height: 4px !important;
-      }
-      
-      .custom-slider .noUi-origin {
-        height: 4px !important;
-      }
-      
-      .custom-slider .noUi-handle {
-        height: 16px !important;
-        width: 16px !important;
-        top: -6px !important;
-        right: -8px !important;
-        background: white !important;
-        border: 2px solid #3b82f6 !important;
-        border-radius: 50% !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-        cursor: grab !important;
-      }
-      
-      .custom-slider .noUi-handle:active {
-        cursor: grabbing !important;
-        transform: scale(1.1) !important;
-        border-color: #1d4ed8 !important;
-      }
-      
-      .custom-slider .noUi-handle:before,
-      .custom-slider .noUi-handle:after {
-        display: none !important;
-      }
-      
-      .custom-slider .noUi-target {
-        background: #e5e7eb !important;
-        border-radius: 2px !important;
-        border: none !important;
-        box-shadow: none !important;
-      }
-      
-      .custom-slider .noUi-handle:hover {
-        background: #f8fafc !important;
-        border-color: #2563eb !important;
-      }
-      
-      .custom-slider .noUi-handle:focus {
-        outline: none !important;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
-      }
-    `;
     
     if (!document.querySelector('#custom-slider-styles')) {
       style.id = 'custom-slider-styles';
@@ -231,6 +196,10 @@ export class RangeRenderer {
         const [start, end] = values.map(val => Math.round(Number(val)));
 
         if (!isNaN(start) && !isNaN(end)) {
+            // Clear play state when user manually changes slider
+            // This ensures animation starts from the new position
+            this.playStates.delete(facetKey);
+            
             onStateChange({ 
               type: 'RANGE_CHANGE', 
               facetKey, 
@@ -251,6 +220,9 @@ export class RangeRenderer {
         if (!isNaN(inputValue)) {
             const newMin = isMin ? Math.max(minValue, Math.min(inputValue, currentMax)) : currentMin;
             const newMax = isMin ? currentMax : Math.min(maxValue, Math.max(inputValue, currentMin));
+            
+            // Clear play state when user manually changes values
+            this.playStates.delete(facetKey);
             
             // Temporarily disable the update event to prevent overwriting
             const tempActiveInput = activeInput;
@@ -292,14 +264,143 @@ export class RangeRenderer {
     minInput.addEventListener('keypress', handleKeyPress);
     maxInput.addEventListener('keypress', handleKeyPress);
 
+    // Setup play controls
+    this.setupPlayControls(facetKey, playBtn, pauseBtn, slider, minValue, maxValue, onStateChange, chartElement, buckets);
+
     // Initial chart highlight
     this.updateChartHighlight(chartElement, buckets, startValue, endValue);
+  }
+
+  setupPlayControls(facetKey, playBtn, pauseBtn, slider, minValue, maxValue, onStateChange, chartElement, buckets) {
+    // Play button handler
+    playBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Play button clicked for:', facetKey);
+      this.startPlay(facetKey, playBtn, pauseBtn, slider, minValue, maxValue, onStateChange, chartElement, buckets);
+    });
+
+    // Pause button handler
+    pauseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Pause button clicked for:', facetKey);
+      this.pausePlay(facetKey, playBtn, pauseBtn);
+    });
+  }
+
+  startPlay(facetKey, playBtn, pauseBtn, slider, minValue, maxValue, onStateChange, chartElement, buckets) {
+    // If already playing, do nothing
+    if (this.playIntervals.has(facetKey)) {
+      return;
+    }
+
+    // Get current slider values as starting point
+    const [currentSliderMin, currentSliderMax] = slider.noUiSlider.get().map(Number);
+
+    // Check if we're resuming from a pause or starting fresh
+    let playState = this.playStates.get(facetKey);
+    
+    if (!playState) {
+      // Starting fresh
+      playState = {
+        startMin: currentSliderMin,
+        currentMax: currentSliderMin + 1,
+        originalMin: currentSliderMin,
+        originalMax: currentSliderMax
+      };
+      this.playStates.set(facetKey, playState);
+    }
+
+    // Update button states
+    playBtn.disabled = true;
+    playBtn.innerHTML = `
+      <div class="flex gap-0.5">
+        <div class="w-0.5 h-3 bg-white rounded-sm"></div>
+        <div class="w-0.5 h-3 bg-white rounded-sm"></div>
+      </div>
+      <span class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">Playing...</span>
+    `;
+    playBtn.className = "group relative w-8 h-8 bg-gradient-to-r from-primary-500 to-indigo-600 text-white text-xs rounded-full transition-colors duration-200 shadow-md flex items-center justify-center opacity-75 cursor-not-allowed";
+    
+    pauseBtn.disabled = false;
+    pauseBtn.className = "group relative w-8 h-8 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs rounded-full transition-colors duration-200 hover:from-red-600 hover:to-pink-700 shadow-md hover:shadow-lg flex items-center justify-center animate-pulse";
+    
+    console.log('Button states after start:', {
+      playDisabled: playBtn.disabled,
+      pauseDisabled: pauseBtn.disabled,
+    });
+
+    // Start the animation interval
+    const playInterval = setInterval(() => {
+      const currentPlayState = this.playStates.get(facetKey);
+      if (!currentPlayState) {
+        clearInterval(playInterval);
+        this.playIntervals.delete(facetKey);
+        return;
+      }
+
+      let { startMin, currentMax } = currentPlayState;
+      currentMax = Math.min(currentMax + 1, maxValue);
+      
+      // If we've reached the end, stop
+      if (currentMax >= maxValue) {
+        this.pausePlay(facetKey, playBtn, pauseBtn);
+        return;
+      }
+
+      // Update play state
+      this.playStates.set(facetKey, { 
+        ...currentPlayState, 
+        currentMax 
+      });
+
+      // Update slider and trigger changes
+      slider.noUiSlider.set([startMin, currentMax]);
+      onStateChange({ 
+        type: 'RANGE_CHANGE', 
+        facetKey, 
+        value: [startMin, currentMax] 
+      });
+      this.updateChartHighlight(chartElement, buckets, startMin, currentMax);
+
+    }, 500);
+
+    // Store the interval
+    this.playIntervals.set(facetKey, playInterval);
+  }
+
+  pausePlay(facetKey, playBtn, pauseBtn) {
+    // Simply clear the interval - that's it!
+    const playInterval = this.playIntervals.get(facetKey);
+    if (playInterval) {
+      clearInterval(playInterval);
+      this.playIntervals.delete(facetKey);
+    }
+
+    // Update button states with small rounded styling
+    playBtn.disabled = false;
+    playBtn.innerHTML = `
+      <div class="w-0 h-0 border-l-[5px] border-l-white border-y-[3px] border-y-transparent ml-0.5"></div>
+      <span class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">Play</span>
+    `;
+    playBtn.className = "group relative w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-xs rounded-full transition-colors duration-200 hover:from-primary-600 hover:to-primary-700 shadow-md hover:shadow-lg flex items-center justify-center";
+    
+    pauseBtn.disabled = true;
+    pauseBtn.className = "group relative w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-xs rounded-full transition-colors duration-200 shadow-md flex items-center justify-center opacity-50 cursor-not-allowed";
   }
 
   // NEW METHOD: Update range facet when data changes
   updateRangeFacet(facetGroup, facetKey, facetConfig, aggregations, checkedState, state, onStateChange) {
     const sliderContainer = facetGroup.querySelector('.facet-slider');
     if (!sliderContainer) return;
+
+    // Stop any playing animation when updating
+    const playBtn = sliderContainer.querySelector(`#${facetKey}-play-btn`);
+    const pauseBtn = sliderContainer.querySelector(`#${facetKey}-pause-btn`);
+    if (playBtn && pauseBtn) {
+      this.pausePlay(facetKey, playBtn, pauseBtn);
+    }
 
     const valueBuckets = aggregations[facetKey] || [];
     const buckets = valueBuckets
@@ -395,19 +496,6 @@ export class RangeRenderer {
     mainContainer.className = 'w-full h-full flex flex-col';
     element.appendChild(mainContainer);
     
-    // Only add play controls if onRangeChange callback is provided
-    if (onRangeChange) {
-      const controlsContainer = document.createElement('div');
-      controlsContainer.className = 'flex items-center justify-center mb-2 flex-shrink-0';
-      mainContainer.appendChild(controlsContainer);
-      
-      const playButton = document.createElement('button');
-      playButton.className = 'px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors';
-      playButton.textContent = '▶ Play';
-      playButton.onclick = () => this.togglePlay(element, onRangeChange);
-      controlsContainer.appendChild(playButton);
-    }
-    
     // Create chart container
     const chartContainer = document.createElement('div');
     chartContainer.className = 'w-full flex-1 rounded px-1 overflow-hidden';
@@ -428,7 +516,6 @@ export class RangeRenderer {
       
       // Set proper height in percentage
       bar.style.height = `${Math.max(barHeight, 1)}%`; // Minimum 1% height
-      bar.style.backgroundColor = '#b0c4de'; // Start with original blue
       
       bar.dataset.value = bucket.value;
       bar.dataset.count = bucket.count;

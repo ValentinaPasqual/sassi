@@ -7,13 +7,16 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
 import 'leaflet-providers';
 
+import '../styles/tailwind.css'
 import { PolygonManager } from './polygonManager.js'
 
 function initMap(config) {
-    const { initialView, initialZoom, tileLayer, attribution } = config.map;
+    const { initialView, initialZoom, tileLayer = config.map.tileLayers[Object.keys(config.map.tileLayers)[0]].tileLayer, attribution = config.map.tileLayers[Object.keys(config.map.tileLayers)[0]].attribution } = config.map;
 
     const map = L.map('map').setView(initialView, initialZoom);
     L.tileLayer(tileLayer, { attribution }).addTo(map);
+
+    window.map = map; 
 
     // Special coordinates that get unique treatment
     const SPECIAL_COORDS = [38.7200, -24.2200];
@@ -29,10 +32,9 @@ function initMap(config) {
     // Create a custom icon using Lucide MapPin
     const createCustomIcon = (count, isSpecial = false) => {
       const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${isSpecial ? '#ef4444' : '#1e40af'}" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="${isSpecial ? 'fill-red-500' : 'fill-secondary-700'} stroke-white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
           <circle cx="12" cy="10" r="3"></circle>
-          ${count > 1 ? `<text x="12" y="10" text-anchor="middle" dy=".3em" fill="white" font-size="8" font-family="Arial">${count}</text>` : ''}
         </svg>
       `;
 
@@ -56,8 +58,8 @@ function initMap(config) {
         const count = cluster.getChildCount();
         const svg = `
           <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r="18" fill="#1e40af" stroke="#ffffff" stroke-width="2"/>
-            <text x="20" y="20" text-anchor="middle" dy=".3em" fill="white" font-size="14" font-family="Arial">${count}</text>
+            <circle cx="20" cy="20" r="18" class="fill-secondary-700 stroke-white" stroke-width="2"/>
+            <text x="20" y="20" text-anchor="middle" dy=".3em" class="fill-secondary-200 text-sm font-sans" font-size="14">${count}</text>
           </svg>
         `;
 
@@ -72,64 +74,15 @@ function initMap(config) {
 
     // Add custom CSS
     const style = document.createElement('style');
-    style.textContent = `
-      .custom-marker {
-        background: none;
-        border: none;
-      }
-      .custom-cluster {
-        background: none;
-        border: none;
-      }
-      .special-marker {
-        filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
-      }
-      .leaflet-popup-content-wrapper {
-        padding: 0;
-        border-radius: 8px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-      }
-      .leaflet-popup-content {
-        margin: 0;
-        padding: 0;
-      }
-      .leaflet-popup-close-button {
-        display: none;
-      }
-      .custom-close-btn {
-        cursor: pointer;
-        transition: all 0.2s ease;
-        padding: 2px;
-        border-radius: 4px;
-      }
-      .custom-close-btn:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-        transform: scale(1.1);
-      }
-      .focus-result-btn {
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border-radius: 4px;
-      }
-      .focus-result-btn:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-        transform: translateX(2px);
-      }
-      .polygon-btn {
-        cursor: pointer;
-        transition: all 0.2s ease;
-        padding: 2px;
-        border-radius: 4px;
-      }
-      .polygon-btn:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-        transform: scale(1.1);
-      }
-    `;
     document.head.appendChild(style);
 
     // Store reference to special circle for cleanup
     let specialCircle = null;
+    
+    // Storage for different marker types
+    let pinMarkers = [];
+    let circleMarkers = [];
+    let circleLabels = [];
 
     // FIXED: Function to load polygon for a specific location
     const loadPolygonForLocation = async (lat, lon, locationName) => {
@@ -181,8 +134,8 @@ function initMap(config) {
     const createFocusButton = (item) => {
       return `
         <button class="focus-result-btn w-full text-left p-1 rounded text-xs" 
-                data-item-id="${item.ID_opera}"
-                onclick="window.focusOnResult('${item.ID_opera}')"
+                data-item-id="${item.pivot_ID}"
+                onclick="window.focusOnResult('${item.pivot_ID}')"
                 title="Vai al risultato nella lista">
           <div class="flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 flex-shrink-0">
@@ -200,8 +153,9 @@ function initMap(config) {
         <button class="polygon-btn ml-1" 
                 onclick="window.showPolygon(${coords[0]}, ${coords[1]}, '${locationName.replace(/'/g, "\\'")}')"
                 title="Mostra poligono area">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-            <path d="M8 1a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
+          <svg class="w-6 h-6 text-white-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
+            <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
           </svg>
         </button>
       `;
@@ -210,233 +164,528 @@ function initMap(config) {
     // Make polygon loading function globally accessible
     window.showPolygon = loadPolygonForLocation;
 
-    // Function to render markers - FIXED to only show filtered items
-    const renderMarkers = (filteredItems) => {
-      // Clear previous markers and special circle
-      markers.clearLayers();
-      if (specialCircle) {
-        map.removeLayer(specialCircle);
-        specialCircle = null;
-      }
+    // Add these variables at the top of your initMap function, after the existing variables
+    let currentMarkerType = 'clusters'; // default
+    let currentFilteredItems = []; // store current filtered items
 
-      // Group ONLY the filtered items by coordinates
-      const locationGroups = {};
+    // Helper function to create popup content - FIXED VERSION with config fields
+    const createPopupContent = (group, isSpecial, config) => {
+      const { name, items, coords } = group;
+      const cardConfig = config.result_cards;
       
-      // Use the filteredItems parameter instead of assuming all items
-      filteredItems.forEach(item => {    
-        // Skip items without coordinates
-        if (!item.lat_long) return;
-        
-        // Parse coordinates from string like "45.9027,7.6587"
-        const coords = item.lat_long.split(',').map(coord => parseFloat(coord.trim()));
-        
-        // Skip if we couldn't parse coordinates properly
-        if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
-          console.error('Invalid coordinates:', item.lat_long);
-          return;
-        }
-        
-        const [latitude, longitude] = coords;
-        const key = `${latitude},${longitude}`;
-        const locationName = item["Spazi geografici"] || "Unknown Location";
-        
-        if (!locationGroups[key]) {
-          locationGroups[key] = {
-            name: locationName, 
-            items: [],
-            coords: [latitude, longitude]
-          };
-        }
-        
-        // Only add items that are in the filtered results
-        locationGroups[key].items.push(item);
-      });
-
-      // Only show markers for locations that have filtered items
-      Object.values(locationGroups).forEach(group => {
-        const { name, items, coords } = group;
-        const coordsKey = `${coords[0]},${coords[1]}`;
-        const isSpecial = coordsKey === SPECIAL_COORDS_KEY;
-
-        // Create popup content - special format for special marker
-        let popupContent;
-        if (isSpecial) {
+      if (isSpecial) {
           // Special popup format showing opera name and location
           // Group items by title and year, collecting unique locations
           const operaGroups = {};
           items.forEach(item => {
-            const key = `${item["Titolo"] || 'Unnamed'} (${item.Anno || 'Unknown Year'})`;
-            if (!operaGroups[key]) {
-              operaGroups[key] = {
-                title: item["Titolo"] || 'Unnamed',
-                year: item.Anno || 'Unknown Year',
-                locations: new Set(),
-                author: item.Autore,
-                item: item // Store reference to item for focus button
-              };
-            }
-            if (item["Spazi geografici"]) {
-              operaGroups[key].locations.add(item["Spazi geografici"]);
-            }
+              const key = `${item[cardConfig.card_title] || 'Unnamed'} (${item[cardConfig.card_subtitle] || 'Unknown Year'})`;
+              if (!operaGroups[key]) {
+                  operaGroups[key] = {
+                      title: item[cardConfig.card_title] || 'Unnamed',
+                      year: item[cardConfig.card_subtitle] || 'Unknown Year',
+                      locations: new Set(),
+                      type: item[cardConfig.card_subtitle_2],
+                      item: item // Store reference to item for focus button
+                  };
+              }
+              if (item["Location"]) {
+                  operaGroups[key].locations.add(item["Location"]);
+              }
           });
           
-          popupContent = `
-          <div class="max-w-sm bg-gradient-to-br from-red-50 to-pink-50 rounded-lg shadow-lg overflow-hidden">
-            <div class="bg-red-500 text-white p-2">
-              <h2 class="font-bold text-base flex items-center justify-between">
-                <div class="flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                    <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                  </svg>
-                  Special Location
-                </div>
-                <div class="custom-close-btn" onclick="this.closest('.leaflet-popup').style.display='none'">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                    <path d="M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z"/>
-                  </svg>
-                </div>
-              </h2>
-            </div>
-            <div class="p-3">
-              <div class="bg-white rounded p-2 mb-2 shadow-sm border-l-2 border-red-400">
-                <p class="text-xs text-gray-600 flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-500">
-                    <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                  </svg>
-                  <span class="font-mono text-xs">${coords[0]}, ${coords[1]}</span>
-                </p>
-              </div>
-              <h3 class="font-semibold text-sm text-gray-800 flex items-center gap-1 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-red-500">
-                  <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
-                </svg>
-                ${Object.keys(operaGroups).length} opere letterarie
-              </h3>
-              <div class="space-y-1 max-h-28 overflow-y-scroll">
-                ${Object.values(operaGroups).map(group => `
-                  <div class="bg-white rounded p-2 shadow-sm border border-gray-100 text-xs">
-                    <div class="flex items-start gap-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0">
-                        <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
-                        <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
-                      </svg>
-                      <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-gray-800 leading-tight">${group.title}, ${group.author || 'Unknown Author'} (${group.year})</div>
-                        <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
-                            <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                          </svg>
-                          ${Array.from(group.locations).join(', ')}
-                        </div>
-                        <div class="mt-1">
-                          ${createFocusButton(group.item)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-          `;
-        } else {
-          // Regular popup format - also only shows filtered items
-          popupContent = `
-          <div class="max-w-sm bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg overflow-hidden">
-            <div class="bg-blue-500 text-white p-2">
-              <h2 class="font-bold text-base flex items-center justify-between">
-                <div class="flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                    <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
-                  </svg>
-                  ${name}
-                  ${createPolygonButton(coords, name)}
-                </div>
-                <div class="custom-close-btn" onclick="this.closest('.leaflet-popup').style.display='none'">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                    <path d="M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z"/>
-                  </svg>
-                </div>
-              </h2>
-            </div>
-            <div class="p-3">
-              <h3 class="font-semibold text-sm text-gray-800 flex items-center gap-1 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-blue-500">
-                  <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
-                </svg>
-                ${items.length} opere letterarie
-              </h3>
-              <div class="space-y-1 max-h-28 overflow-y-scroll">
-                ${items.map(item => `
-                  <div class="bg-white rounded p-2 shadow-sm border border-gray-100 text-xs">
-                    <div class="flex items-start gap-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0">
-                        <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
-                        <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
-                      </svg>
-                      <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-gray-800 leading-tight">${item["Titolo"] || 'Unnamed'}, ${item.Autore || 'Unknown Author'} (${item.Anno || 'Unknown Year'})</div>
-                        ${item.Guide ? `
-                          <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
-                              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z"/>
-                            </svg>
-                            ${item.Guide}
+          return `
+          <div class="max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border border-red-100/50 backdrop-blur-sm">
+              <!-- Header con gradiente animato -->
+              <div class="bg-gradient-to-r from-red-500 via-red-600 to-pink-600 text-white p-3 relative overflow-hidden">
+                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse"></div>
+                  <h2 class="font-bold text-base flex items-center justify-between relative z-10">
+                      <div class="flex items-center gap-2">
+                          <div class="p-1 bg-white/20 rounded-lg backdrop-blur-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                                  <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                              </svg>
                           </div>
-                        ` : ''}
-                        <div class="mt-1">
-                          ${createFocusButton(item)}
+                          <span class="text-white/90 font-medium">Location Speciale</span>
+                      </div>
+                      <button class="custom-close-btn p-1 hover:bg-white/20 rounded-lg transition-colors duration-200" onclick="this.closest('.leaflet-popup').style.display='none'">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                              <path d="M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z"/>
+                          </svg>
+                      </button>
+                  </h2>
+              </div>
+
+              <div class="p-4 bg-gradient-to-br from-red-50/50 to-pink-50/30">
+
+                  <!-- Header risultati -->
+                  <div class="flex items-center gap-2 mb-3">
+                      <div class="p-1.5 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-white">
+                              <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
+                          </svg>
+                      </div>
+                      <h3 class="font-semibold text-gray-800 text-sm">
+                          <span class="bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent font-bold">
+                              ${Object.keys(operaGroups).length}
+                          </span> 
+                          Risultati trovati
+                      </h3>
+                  </div>
+
+                  <!-- Lista risultati con scrollbar personalizzata -->
+                  <div class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-red-300 scrollbar-track-red-50 hover:scrollbar-thumb-red-400">
+                  ${Object.values(operaGroups).map((group, index) => `
+                    <div class="group bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-red-100/50 hover:shadow-lg hover:border-red-200 transition-all duration-300 hover:-translate-y-0.5">
+                      <div class="flex items-start gap-2">
+                        <div class="p-1 bg-gradient-to-br from-red-100 to-pink-100 rounded-lg group-hover:from-red-200 group-hover:to-pink-200 transition-colors duration-300">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-600">
+                            <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
+                            <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
+                          </svg>
+                        </div>
+                        
+                        <div class="min-w-0 flex-1">
+                          <!-- Title -->
+                          <div class="mb-2">
+                            <h3 class="text-lg font-bold text-gray-800 leading-tight group-hover:text-gray-900 transition-colors">${group.title}</h3>
+                            <div class="flex items-center gap-3 mt-1">
+                              ${group.year ? `<span class="text-sm text-gray-700 font-medium">${group.year}</span>` : ''}
+                              ${group.year && group.type ? `<span class="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>` : ''}
+                              ${group.type ? `<span class="text-sm text-gray-600 font-mono">${group.type}</span>` : ''}
+                            </div>
+                          </div>
+                          
+                          <!-- Locations -->
+                          ${Array.from(group.locations).length > 0 ? `
+                            <div class="flex items-center gap-1 mb-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-red-400 flex-shrink-0">
+                                <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                              </svg>
+                              <span class="text-xs text-gray-500 truncate">${Array.from(group.locations).join(', ')}</span>
+                            </div>
+                          ` : ''}
+                          
+                          <!-- Focus Button -->
+                          <div class="mt-2">
+                            ${createFocusButton(group.item)}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  `).join('')}
                   </div>
-                `).join('')}
               </div>
-            </div>
           </div>
           `;
-        }
-
-        // Create marker with custom icon
-        const marker = L.marker(coords, {
-          icon: createCustomIcon(items.length, isSpecial)
-        }).bindPopup(popupContent);
-
-        // Add blue circle around special marker
-        if (isSpecial) {
-          specialCircle = L.circle(coords, {
-            color: '#ef4444',
-            fillColor: '#ef4444',
-            fillOpacity: 0.15,
-            radius: 8000, // 8km radius - larger than before
-            weight: 4
-          }).addTo(map);
-        }
-
-        markers.addLayer(marker);
-      });
-
-      // If no markers were added, log a message
-      if (Object.keys(locationGroups).length === 0) {
-        console.log('No markers to display for current filter selection');
       } else {
-        console.log(`Added ${Object.keys(locationGroups).length} markers to the map (showing only filtered items)`);
+          // Regular popup format
+          return `
+          <div class="max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border border-primary-100/50 backdrop-blur-sm">
+              <!-- Header con gradiente animato -->
+              <div class="bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-600 text-white p-3 relative overflow-hidden">
+                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse"></div>
+                  <h2 class="font-bold text-base flex items-center justify-between relative z-10">
+                      <div class="flex items-center gap-2">
+                          <div class="p-1 bg-white/20 rounded-lg backdrop-blur-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                                  <path fill-rule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd" />
+                              </svg>
+                          </div>
+                          <span class="text-white/90 font-medium truncate">${name}</span>
+                          ${createPolygonButton(coords, name)}
+                      </div>
+                      <button class="custom-close-btn p-1 hover:bg-white/20 rounded-lg transition-colors duration-200" onclick="this.closest('.leaflet-popup').style.display='none'">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                              <path d="M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z"/>
+                          </svg>
+                      </button>
+                  </h2>
+              </div>
+
+              <div class="p-4 bg-gradient-to-br from-primary-50/50 to-secondary-50/30">
+                  <!-- Header risultati -->
+                  <div class="flex items-center gap-2 mb-3">
+                      <div class="p-1.5 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4 text-white">
+                              <path d="M3 3a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3ZM3 7.5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3ZM2 12.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1ZM7 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 7 4ZM7.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6ZM7 12.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5Z"/>
+                          </svg>
+                      </div>
+                      <h3 class="font-semibold text-gray-800 text-sm">
+                          <span class="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold">
+                              ${items.length}
+                          </span> 
+                          Risultati trovati
+                      </h3>
+                  </div>
+
+                  <!-- Lista risultati con scrollbar personalizzata -->
+                  <div class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-primary-300 scrollbar-track-primary-50 hover:scrollbar-thumb-primary-400">
+${items.map((item, index) => `
+  <div class="group bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-primary-100/50 hover:shadow-lg hover:border-primary-200 transition-all duration-300 hover:-translate-y-0.5">
+    <div class="flex items-start gap-2">
+      <div class="p-1 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg group-hover:from-primary-200 group-hover:to-secondary-200 transition-colors duration-300">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-primary-600">
+          <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
+          <path d="M5.5 5.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM5.5 8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75ZM6.25 10.5a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Z"/>
+        </svg>
+      </div>
+      
+      <div class="min-w-0 flex-1">
+        <!-- Title -->
+        <div class="mb-2">
+          <h3 class="text-lg font-bold text-gray-800 leading-tight group-hover:text-gray-900 transition-colors">${item[config.result_cards.card_title] || 'Unnamed'}</h3>
+          <div class="flex items-center gap-3 mt-1">
+            ${item[config.result_cards.card_subtitle] ? `<span class="text-sm text-gray-700 font-medium">${item[config.result_cards.card_subtitle]}</span>` : ''}
+            ${item[config.result_cards.card_subtitle] && item[config.result_cards.card_subtitle_2] ? `<span class="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>` : ''}
+            ${item[config.result_cards.card_subtitle_2] ? `<span class="text-sm text-gray-600 font-mono">${item[config.result_cards.card_subtitle_2]}</span>` : ''}
+          </div>
+        </div>
+        
+        <!-- Description -->
+        ${item[config.result_cards.description] ? `
+          <div class="flex items-center gap-1 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-primary-400 flex-shrink-0">
+              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z"/>
+            </svg>
+            <span class="text-xs text-gray-500 truncate">${item[config.result_cards.description]}</span>
+          </div>
+        ` : ''}
+        
+        <!-- Focus Button -->
+        <div class="mt-2">
+          ${createFocusButton(item)}
+        </div>
+      </div>
+    </div>
+  </div>
+`).join('')}
+                  </div>
+              </div>
+          </div>
+          `;
       }
+    };
+
+    // Function to clear all markers from map
+    const clearAllMarkers = () => {
+        console.log('Clearing all markers...');
+        
+        // Clear cluster markers (remove from map and clear the group)
+        if (markers) {
+            map.removeLayer(markers);
+            markers.clearLayers();
+            // Re-add the empty cluster group to the map
+            markers.addTo(map);
+        }
+        
+        // Clear pin markers
+        pinMarkers.forEach(marker => {
+            if (map.hasLayer(marker)) {
+                map.removeLayer(marker);
+            }
+        });
+        pinMarkers.length = 0; // Clear array completely
+        
+        // Clear circle markers and labels
+        circleMarkers.forEach(circle => {
+            if (map.hasLayer(circle)) {
+                map.removeLayer(circle);
+            }
+        });
+        circleLabels.forEach(label => {
+            if (map.hasLayer(label)) {
+                map.removeLayer(label);
+            }
+        });
+        circleMarkers.length = 0; // Clear array completely
+        circleLabels.length = 0; // Clear array completely
+        
+        // Clear special circle
+        if (specialCircle && map.hasLayer(specialCircle)) {
+            map.removeLayer(specialCircle);
+            specialCircle = null;
+        }
+        
+        console.log('All markers cleared. Arrays reset.');
+    };
+
+    // Function to show clusters (your existing logic)
+    const showClusters = () => {
+        // Group filtered items by coordinates
+        const locationGroups = {};
+        
+        currentFilteredItems.forEach(item => {    
+            if (!item.lat_long) return;
+            
+            const coords = item.lat_long.split(',').map(coord => parseFloat(coord.trim()));
+            if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+                console.error('Invalid coordinates:', item.lat_long);
+                return;
+            }
+            
+            const [latitude, longitude] = coords;
+            const key = `${latitude},${longitude}`;
+            const locationName = item["Location"] || "Unknown Location";
+            
+            if (!locationGroups[key]) {
+                locationGroups[key] = {
+                    name: locationName, 
+                    items: [],
+                    coords: [latitude, longitude]
+                };
+            }
+            
+            locationGroups[key].items.push(item);
+        });
+
+        // Create clustered markers
+        Object.values(locationGroups).forEach(group => {
+            const { name, items, coords } = group;
+            const coordsKey = `${coords[0]},${coords[1]}`;
+            const isSpecial = coordsKey === SPECIAL_COORDS_KEY;
+
+            let popupContent = createPopupContent(group, isSpecial, config);
+
+            const marker = L.marker(coords, {
+                icon: createCustomIcon(items.length, isSpecial)
+            }).bindPopup(popupContent);
+
+            if (isSpecial) {
+                specialCircle = L.circle(coords, {
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.15,
+                    radius: 8000,
+                    weight: 4
+                }).addTo(map);
+            }
+
+            markers.addLayer(marker);
+        });
+    };
+
+    // Function to show pins with numbers
+    const showPinsWithNumbers = () => {
+        const locationGroups = {};
+        
+        currentFilteredItems.forEach(item => {    
+            if (!item.lat_long) return;
+            
+            const coords = item.lat_long.split(',').map(coord => parseFloat(coord.trim()));
+            if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+                return;
+            }
+            
+            const [latitude, longitude] = coords;
+            const key = `${latitude},${longitude}`;
+            const locationName = item["Location"] || "Unknown Location";
+            
+            if (!locationGroups[key]) {
+                locationGroups[key] = {
+                    name: locationName, 
+                    items: [],
+                    coords: [latitude, longitude]
+                };
+            }
+            
+            locationGroups[key].items.push(item);
+        });
+
+        // Create individual pin markers with numbers
+        Object.values(locationGroups).forEach(group => {
+            const { name, items, coords } = group;
+            const coordsKey = `${coords[0]},${coords[1]}`;
+            const isSpecial = coordsKey === SPECIAL_COORDS_KEY;
+
+            // Create a numbered pin icon
+            const numberedIcon = L.divIcon({
+                html: `<div class="numbered-pin ${isSpecial ? 'special' : ''}">
+                         <div class="pin-number">${items.length}</div>
+                         <div class="pin-point"></div>
+                       </div>`,
+                className: 'numbered-pin-container',
+                iconSize: [30, 40],
+                iconAnchor: [15, 40],
+                popupAnchor: [0, -40]
+            });
+
+            let popupContent = createPopupContent(group, isSpecial, config);
+
+            const marker = L.marker(coords, {
+                icon: numberedIcon
+            }).bindPopup(popupContent);
+
+            if (isSpecial) {
+                specialCircle = L.circle(coords, {
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.15,
+                    radius: 8000,
+                    weight: 4
+                }).addTo(map);
+            }
+
+            // Add to pin markers array and map
+            pinMarkers.push(marker);
+            marker.addTo(map);
+        });
+    };
+
+    // Function to show proportional circles without displaying counts
+    // Function to show proportional circles without displaying counts
+    const showProportionalCircles = () => {
+        const locationGroups = {};
+        
+        currentFilteredItems.forEach(item => {    
+            if (!item.lat_long) return;
+            
+            const coords = item.lat_long.split(',').map(coord => parseFloat(coord.trim()));
+            if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+                return;
+            }
+            
+            const [latitude, longitude] = coords;
+            const key = `${latitude},${longitude}`;
+            const locationName = item["Location"] || "Unknown Location";
+            
+            if (!locationGroups[key]) {
+                locationGroups[key] = {
+                    name: locationName, 
+                    items: [],
+                    coords: [latitude, longitude]
+                };
+            }
+            
+            locationGroups[key].items.push(item);
+        });
+
+        // Find max count for proportional sizing
+        const maxCount = Math.max(...Object.values(locationGroups).map(g => g.items.length));
+        
+        Object.values(locationGroups).forEach(group => {
+            const { name, items, coords } = group;
+            const coordsKey = `${coords[0]},${coords[1]}`;
+            const isSpecial = coordsKey === SPECIAL_COORDS_KEY;
+            
+            // Calculate proportional radius based on square root for better visual scaling
+            const minRadius = 800;
+            const maxRadius = 5000;
+            const normalizedCount = Math.sqrt(items.length / maxCount); // Square root for better visual proportion
+            const radius = minRadius + (maxRadius - minRadius) * normalizedCount;
+            
+            // Get colors from Tailwind classes
+            const getTailwindColor = (className) => {
+                const element = document.createElement('div');
+                element.className = className;
+                element.style.display = 'none';
+                document.body.appendChild(element);
+                const color = getComputedStyle(element).backgroundColor;
+                document.body.removeChild(element);
+                return color;
+            };
+            
+            const specialColor = getTailwindColor('bg-red-500');
+            const normalColor = getTailwindColor('bg-secondary-500');
+            
+            const circleColors = {
+                color: isSpecial ? specialColor : normalColor,
+                fillColor: isSpecial ? specialColor : normalColor
+            };
+            
+            // Create proportional circle without count display
+            const circle = L.circle(coords, {
+                color: circleColors.color,
+                fillColor: circleColors.fillColor,
+                fillOpacity: 0.3,
+                radius: radius,
+                weight: items.length === 1 ? 2 : Math.min(2 + Math.floor(items.length / 5), 6) // Vary border thickness too
+            });
+
+            // Create popup content
+            let popupContent = createPopupContent(group, isSpecial, config);
+            
+            circle.bindPopup(popupContent);
+
+            // Add special circle if needed
+            if (isSpecial) {
+                specialCircle = L.circle(coords, {
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.15,
+                    radius: 8000,
+                    weight: 4
+                }).addTo(map);
+            }
+
+            // Add to array and map
+            circleMarkers.push(circle);
+            circle.addTo(map);
+        });
+    };
+
+    // Modify the renderMarkers function to store filtered items and delegate to marker type functions
+    var renderMarkers = (filteredItems) => {
+        // Store current filtered items for marker type switching
+        currentFilteredItems = filteredItems;
+        
+        // Clear previous markers and special circle
+        clearAllMarkers();
+        
+        // Delegate to appropriate marker rendering function
+        switch(currentMarkerType) {
+            case 'clusters':
+                showClusters();
+                break;
+            case 'pins':
+                showPinsWithNumbers();
+                break;
+            case 'circles':
+                showProportionalCircles();
+                break;
+            default:
+                showClusters();
+        }
+
+        // If no markers were added, log a message
+        if (currentFilteredItems.length === 0) {
+            console.log('No markers to display for current filter selection');
+        } else {
+            console.log(`Processed ${currentFilteredItems.length} items for map display`);
+        }
+    };
+
+    // Function to switch marker type
+    const switchMarkerType = (markerType) => {
+        currentMarkerType = markerType;
+        console.log(`Switching to marker type: ${markerType}`);
+        // Re-render with current filtered items
+        renderMarkers(currentFilteredItems);
     };
 
     // Function to set the focus callback
     const setFocusResultCallback = (callback) => {
-      focusResultCallback = callback;
-      // Make it globally accessible for the onclick handlers
-      window.focusOnResult = callback;
+        focusResultCallback = callback;
+        // Make it globally accessible for the onclick handlers
+        window.focusOnResult = callback;
     };
 
-    // Return the map and functions
+    // Make marker type switching globally accessible
+    window.switchMarkerType = switchMarkerType;
+
+    // Store references globally for external access
+    window.pinMarkers = pinMarkers;
+    window.circleMarkers = circleMarkers;
+    window.circleLabels = circleLabels;
+    window.markerClusterGroup = markers;
+
+    // Return the API
     return {
-      map,
-      markers,
-      renderMarkers,
-      setFocusResultCallback
+        map,
+        markers,
+        renderMarkers,
+        setFocusResultCallback,
+        switchMarkerType,
+        clearAllMarkers
     };
 }
 

@@ -1,11 +1,27 @@
 export class TaxonomyRenderer {
+  constructor() {
+    this.originalFacetData = null; // Store original data on first render
+  }
+
   renderTaxonomy(container, facetData, facetKey, checkedState) {
-    const hierarchy = this._buildHierarchy(facetData);
+    // Preserve original facet data on first render
+    if (!this.originalFacetData) {
+      this.originalFacetData = JSON.parse(JSON.stringify(facetData));
+    }
+
+    // Always build hierarchy from original data to keep counts stable
+    const hierarchy = this._buildHierarchy(this.originalFacetData);
     this._calculateTotalCounts(hierarchy);
+    
     container.className = 'taxonomy-container max-w-full overflow-x-auto max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-2';
     container.innerHTML = this._createTaxonomyHTML(hierarchy, [], 0, facetKey, checkedState);
     this._addToggleListeners(container);
     this._addCheckboxListeners(container, hierarchy, facetKey);
+  }
+
+  // Method to reset original data if needed (e.g., when completely new data is loaded)
+  resetOriginalData() {
+    this.originalFacetData = null;
   }
 
   _buildHierarchy(facetData) {
@@ -77,22 +93,31 @@ export class TaxonomyRenderer {
       const indentClass = level > 0 ? `ml-${Math.min(level * 4, 12)}` : '';
 
       html += `
-        <div class="taxonomy-item ${indentClass}">
-          <div class="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 transition-colors whitespace-nowrap min-w-max">
+        <div class="taxonomy-item">
+          <label class="cursor-pointer block facet-option" style="display: grid; grid-template-columns: ${level * 20}px auto 1fr auto; gap: 8px; align-items: center;" data-search-text="${key.toLowerCase()}">
+            <!-- Indentation spacer -->
+            <div></div>
+            
+            <!-- Toggle button -->
             ${hasChildren ? 
               `<button class="toggle-btn flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 transition-colors" data-path="${fullPath}">
                 <svg class="w-3 h-3 text-gray-600 transform transition-transform duration-200 ${shouldExpand ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
               </button>` : '<div class="w-5 h-5 flex-shrink-0"></div>'}
-            <label class="flex items-center gap-2 cursor-pointer flex-grow min-w-0">
-              <input type="checkbox" value="${fullPath}" data-facet-type="${facetKey}" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0" ${isChecked ? 'checked' : ''}>
-              <span class="text-sm text-gray-700 whitespace-nowrap flex-shrink-0 ${isChecked ? 'font-medium text-blue-700' : ''}">${key}</span>
-              <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-auto">${value.docCount}</span>
-            </label>
-          </div>
+            
+            <!-- Content container with checkbox and text -->
+            <div class="flex items-center gap-2 min-w-0">
+              <input type="checkbox" value="${fullPath}" data-facet-type="${facetKey}" class="form-checkbox flex-shrink-0" ${isChecked ? 'checked' : ''}>
+              <span class="text-sm ${isChecked ? 'font-medium text-primary-700' : ''} truncate">${key}</span>
+            </div>
+            
+            <!-- Count (always in the last column) -->
+            <span class="text-xs text-secondary-500 bg-secondary-100 px-2 py-0.5 rounded-full flex-shrink-0 ${value.docCount === 0 ? 'text-secondary-800 bg-secondary-100' : ''}">${value.docCount}</span>
+          </label>
+          
           ${hasChildren ? 
-            `<div class="children ml-2 ${shouldExpand ? '' : 'hidden'}" data-parent="${fullPath}">
+            `<div class="children ${shouldExpand ? '' : 'hidden'}" data-parent="${fullPath}">
               ${this._createTaxonomyHTML(value.children, currentPath, level + 1, facetKey, checkedState)}
             </div>` : ''}
         </div>`;
@@ -153,86 +178,87 @@ export class TaxonomyRenderer {
     });
   }
 
-_addCheckboxListeners(container, hierarchy, facetKey) {
-  container._hierarchy = hierarchy;
+  _addCheckboxListeners(container, hierarchy, facetKey) {
+    container._hierarchy = hierarchy;
 
-  container.addEventListener('change', (e) => {
-    if (e.target.type === 'checkbox') {
-      const checkbox = e.target;
-      const fullPath = checkbox.value;
-      const isChecked = checkbox.checked;
-      e.stopPropagation();
+    container.addEventListener('change', (e) => {
+      if (e.target.type === 'checkbox') {
+        const checkbox = e.target;
+        const fullPath = checkbox.value;
+        const isChecked = checkbox.checked;
+        e.stopPropagation();
 
-      const parentPaths = this._getParentPaths(fullPath) || [];
-      const allChildPaths = this._getChildPathsForNode(hierarchy, fullPath) || [];
+        const parentPaths = this._getParentPaths(fullPath) || [];
+        const allChildPaths = this._getChildPathsForNode(hierarchy, fullPath) || [];
 
-      // Update the visual state of related checkboxes (but don't dispatch events for them)
-      this._updateRelatedCheckboxes(container, hierarchy, fullPath, isChecked, parentPaths, allChildPaths);
+        // Update the visual state of related checkboxes (but don't dispatch events for them)
+        this._updateRelatedCheckboxes(container, hierarchy, fullPath, isChecked, parentPaths, allChildPaths);
 
-      // Only dispatch event for the path that was actually clicked
-      const changeEvent = new CustomEvent('taxonomyChange', {
-        detail: {
-          facetKey,
-          path: fullPath,  // Only the clicked path
-          checked: isChecked,
-          action: isChecked ? 'add' : 'remove'
-        }
-      });
-      container.dispatchEvent(changeEvent);
-    }
-  });
-}
-
-_updateRelatedCheckboxes(container, hierarchy, clickedPath, isChecked, parentPaths, childPaths) {
-  if (isChecked) {
-    // When checking a child, check all parent paths (visual only)
-    parentPaths?.forEach(parentPath => {
-      const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
-      if (parentCheckbox && !parentCheckbox.checked) {
-        parentCheckbox.checked = true;
-        this._updateCheckboxVisuals(parentCheckbox, true);
-      }
-    });
-
-    // When checking a parent, check all child paths (visual only)
-    childPaths?.forEach(childPath => {
-      const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
-      if (childCheckbox && !childCheckbox.checked) {
-        childCheckbox.checked = true;
-        this._updateCheckboxVisuals(childCheckbox, true);
-      }
-    });
-
-  } else {
-    // When unchecking a parent, uncheck all child paths (visual only)
-    childPaths?.forEach(childPath => {
-      const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
-      if (childCheckbox && childCheckbox.checked) {
-        childCheckbox.checked = false;
-        this._updateCheckboxVisuals(childCheckbox, false);
-      }
-    });
-
-    // When unchecking a child, check if parents should be unchecked (visual only)
-    parentPaths?.forEach(parentPath => {
-      const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
-      if (parentCheckbox && parentCheckbox.checked) {
-        const parentChildPaths = this._getChildPathsForNode(hierarchy, parentPath) || [];
-        const hasCheckedChildren = parentChildPaths.some(childPath => {
-          const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
-          return childCheckbox && childCheckbox.checked;
+        // Only dispatch event for the path that was actually clicked
+        const changeEvent = new CustomEvent('taxonomyChange', {
+          detail: {
+            facetKey,
+            path: fullPath,  // Only the clicked path
+            checked: isChecked,
+            action: isChecked ? 'add' : 'remove'
+          }
         });
-        if (!hasCheckedChildren) {
-          parentCheckbox.checked = false;
-          this._updateCheckboxVisuals(parentCheckbox, false);
-        }
+        container.dispatchEvent(changeEvent);
       }
     });
   }
 
-  // Update visuals for the clicked checkbox
-  this._updateCheckboxVisuals(container.querySelector(`input[value="${clickedPath}"]`), isChecked);
-}
+  _updateRelatedCheckboxes(container, hierarchy, clickedPath, isChecked, parentPaths, childPaths) {
+    if (isChecked) {
+      // When checking a child, check all parent paths (visual only)
+      parentPaths?.forEach(parentPath => {
+        const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
+        if (parentCheckbox && !parentCheckbox.checked) {
+          parentCheckbox.checked = true;
+          this._updateCheckboxVisuals(parentCheckbox, true);
+        }
+      });
+
+      // When checking a parent, check all child paths (visual only)
+      childPaths?.forEach(childPath => {
+        const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
+        if (childCheckbox && !childCheckbox.checked) {
+          childCheckbox.checked = true;
+          this._updateCheckboxVisuals(childCheckbox, true);
+        }
+      });
+
+    } else {
+      // When unchecking a parent, uncheck all child paths (visual only)
+      childPaths?.forEach(childPath => {
+        const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
+        if (childCheckbox && childCheckbox.checked) {
+          childCheckbox.checked = false;
+          this._updateCheckboxVisuals(childCheckbox, false);
+        }
+      });
+
+      // When unchecking a child, check if parents should be unchecked (visual only)
+      parentPaths?.forEach(parentPath => {
+        const parentCheckbox = container.querySelector(`input[value="${parentPath}"]`);
+        if (parentCheckbox && parentCheckbox.checked) {
+          const parentChildPaths = this._getChildPathsForNode(hierarchy, parentPath) || [];
+          const hasCheckedChildren = parentChildPaths.some(childPath => {
+            const childCheckbox = container.querySelector(`input[value="${childPath}"]`);
+            return childCheckbox && childCheckbox.checked;
+          });
+          if (!hasCheckedChildren) {
+            parentCheckbox.checked = false;
+            this._updateCheckboxVisuals(parentCheckbox, false);
+          }
+        }
+      });
+    }
+
+    // Update visuals for the clicked checkbox
+    this._updateCheckboxVisuals(container.querySelector(`input[value="${clickedPath}"]`), isChecked);
+  }
+
   _updateCheckboxVisuals(checkbox, isChecked) {
     if (!checkbox) return;
 
@@ -240,7 +266,7 @@ _updateRelatedCheckboxes(container, hierarchy, clickedPath, isChecked, parentPat
     const textSpan = label?.querySelector('span.text-sm');
     if (textSpan) {
       textSpan.classList.toggle('font-medium', isChecked);
-      textSpan.classList.toggle('text-blue-700', isChecked);
+      textSpan.classList.toggle('text-primary-700', isChecked);
     }
   }
 

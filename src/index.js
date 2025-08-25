@@ -2,6 +2,7 @@
 import { initMap } from './utils/initMap.js';
 import { parseData } from './utils/dataParser.js';
 import { loadConfiguration } from './utils/configLoader.js';
+import './styles/tailwind.css'
 
 // Funzione per aggiornare i contenuti dinamicamente
 function updateProjectDescription(config) {
@@ -18,7 +19,38 @@ function updateProjectDescription(config) {
   const mapInfoDescription = document.querySelector('[data-content="map-info-description"]');
   if (mapInfoDescription) mapInfoDescription.textContent = config.project.mapInfoDescription;
   
-  // Per il testo del titolo del progetto
+  // **NUOVA GESTIONE THUMBNAIL**
+  // Aggiunge/aggiorna la thumbnail del progetto usando data-content
+  const projectThumbnail = document.querySelector('[data-content="project-thumbnail"]');
+  if (projectThumbnail && config.project.projectThumbnailURL) {
+    // Controlla se esiste già un'immagine
+    let existingImage = projectThumbnail.querySelector('img');
+    
+    if (existingImage) {
+      // Se esiste già, aggiorna solo il src e l'alt
+      existingImage.src = config.project.projectThumbnailURL;
+      existingImage.alt = config.project.projectShortTitle || 'Logo del progetto';
+    } else {
+      // Pulisce il contenuto esistente
+      projectThumbnail.innerHTML = '';
+      
+      // Crea una nuova immagine
+      const thumbnailImage = document.createElement('img');
+      thumbnailImage.src = config.project.projectThumbnailURL;
+      thumbnailImage.alt = config.project.projectShortTitle || 'Logo del progetto';
+      thumbnailImage.className = 'h-20 object-contain'; // Dimensioni appropriate per l'header
+      
+      projectThumbnail.appendChild(thumbnailImage);
+    }
+  } else if (projectThumbnail && !config.project.projectThumbnailURL) {
+    // Se il container esiste ma non c'è thumbnail nel config, rimuovi eventuali immagini
+    const existingImage = projectThumbnail.querySelector('img');
+    if (existingImage) {
+      existingImage.remove();
+    }
+  }
+  
+  // Per il testo del titolo del progetto (codice esistente)
   const projectNameElement = document.querySelector('[data-content="project-name"]');
   if (projectNameElement) {
     // Troviamo l'ultimo nodo di testo che contiene "Il Progetto"
@@ -34,7 +66,7 @@ function updateProjectDescription(config) {
     }
   }
   
-  // Aggiorna i paragrafi della descrizione
+  // Aggiorna i paragrafi della descrizione (codice esistente)
   const descParts = config.project.projectDescription.split('<br><br>');
   const desc1 = document.querySelector('[data-content="project-description-1"]');
   const desc2 = document.querySelector('[data-content="project-description-2"]');
@@ -48,7 +80,7 @@ function updateProjectDescription(config) {
 // Funzione principale asincrona per la mappa
 async function initializeMap(config, data) {
   try {
-    // Crea un elemento container con ID specifico per Leaflet
+    // Crea un elemento container con ID specifico per Leaflet preso dal config file 
     const mapId = 'map';
     
     // Verifica se il container esiste già

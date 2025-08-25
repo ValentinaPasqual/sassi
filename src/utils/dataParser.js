@@ -100,26 +100,50 @@ const dataParser = {
         console.log('Fields unchanged, no need to update config file');
       }
       
-      // Create a map of catalogue data for quick lookup
-      const catalogueMap = new Map();
-      catalogueData.forEach(book => {
-        if (book.ID_opera) {
-          catalogueMap.set(book.ID_opera, book);
-        }
-      });
+      // Determine which field to use for joining
+      let joinField = null;
       
-      // Create the final dataset starting from geodata
-      const finalData = geodataData.map(placeEntry => {
-        // Get the corresponding catalogue data for this ID_opera
-        const catalogueEntry = catalogueMap.get(placeEntry.ID_opera) || {};
+      // Check if both datasets have "Location" field
+      if (catalogueFields.includes('Location') && geodataFields.includes('Location')) {
+        joinField = 'Location';
+      }
+      // Check if both datasets have "Titolo" field
+      else if (catalogueFields.includes('Titolo') && geodataFields.includes('Titolo')) {
+        joinField = 'Titolo';
+      }
+      
+      if (!joinField) {
+        console.warn('No common join field found. Available fields:');
+        console.warn('Catalogue fields:', catalogueFields);
+        console.warn('Geodata fields:', geodataFields);
+        // Return combined data without joining
+        return this.processMultivalueFields([...catalogueData, ...geodataData]);
+      }
+      
+      console.log(`Using "${joinField}" as join field`);
+      
+      // Create the final dataset by merging each geodata entry with ALL matching catalogue entries
+      const finalData = [];
+      
+      geodataData.forEach(placeEntry => {
+        // Find ALL catalogue entries that match this join field
+        const matchingCatalogueEntries = catalogueData.filter(book => 
+          book[joinField] === placeEntry[joinField]
+        );
         
-        // Merge geodata with catalogue data (geodata properties take precedence)
-        const mergedEntry = {
-          ...catalogueEntry,  // Add all catalogue data first
-          ...placeEntry       // Then add geodata (overwrites any duplicate keys)
-        };
-        
-        return mergedEntry;
+        if (matchingCatalogueEntries.length > 0) {
+          // Create a merged entry for each matching catalogue entry
+          matchingCatalogueEntries.forEach(catalogueEntry => {
+            const mergedEntry = {
+              ...catalogueEntry,  // Add all catalogue data first
+              ...placeEntry       // Then add geodata (overwrites any duplicate keys)
+            };
+            finalData.push(mergedEntry);
+          });
+        } else {
+          // If no catalogue match, just add the geodata entry
+          finalData.push(placeEntry);
+        }
       });
       
       // Process multivalue fields
@@ -178,8 +202,8 @@ const dataParser = {
           } else if (value.toLowerCase() === 'false') {
             item[header] = false;
           } else if (!isNaN(value) && value.trim() !== '') {
-            // Special case for ID_opera - keep as string to ensure consistent matching
-            if (header === 'ID_opera') {
+            // Special case for join fields - keep as string to ensure consistent matching
+            if (header === 'Location' || header === 'Titolo') {
               item[header] = value;
             } else {
               item[header] = Number(value);

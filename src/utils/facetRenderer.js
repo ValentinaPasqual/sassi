@@ -1,6 +1,7 @@
 // facetRenderer.js
 import { TaxonomyRenderer } from './taxonomyRenderer.js';
 import { RangeRenderer } from './rangeRenderer.js';
+import '../styles/tailwind.css'
 
 export class FacetRenderer {
   constructor(config) {
@@ -139,7 +140,7 @@ export class FacetRenderer {
       
       const searchInput = document.createElement('input');
       searchInput.type = 'text';
-      searchInput.className = 'facet-search-input w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500';
+      searchInput.className = 'facet-search-input w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500';
       searchInput.placeholder = `Cerca...`;
       searchInput.id = `search-${facetKey}`;
       
@@ -204,7 +205,7 @@ export class FacetRenderer {
       // Right side container for count
       const countContainer = document.createElement('span');
       countContainer.textContent = bucket.doc_count;
-      countContainer.className = `text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-auto ${bucket.doc_count === 0 ? 'text-gray-400 bg-gray-50' : ''}`;
+      countContainer.className = `text-xs text-secondary-500 bg-secondary-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-auto ${bucket.doc_count === 0 ? 'text-seconday-800 bg-secondary-100' : ''}`;
 
       leftContainer.appendChild(checkbox);
       leftContainer.appendChild(text);

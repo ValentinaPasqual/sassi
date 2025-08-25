@@ -1,10 +1,9 @@
-import './style.css';
 import itemsjs from 'itemsjs';
+import './styles/tailwind.css'
 import { parseData } from './utils/dataParser.js';
 import { loadConfiguration } from './utils/configLoader.js';
 import { initMap } from './utils/initMap.js';
 import { navBarRenderer } from './utils/navBarRenderer.js';
-import { PolygonManager } from './utils/polygonManager.js';
 
 // Import the modules for facets Handling
 import { FacetRenderer } from './utils/facetRenderer.js';
@@ -34,7 +33,7 @@ class LEDASearch {
   async initialize() {
     try {
       this.showFullScreenLoader();
-      this.showProgressLoader();
+      // Removed showProgressLoader() call
       
       // Load configuration and data
       this.config = await loadConfiguration();
@@ -61,13 +60,13 @@ class LEDASearch {
       this.isFullyLoaded = true;
       
       // Everything is loaded - hide all loaders
-      this.hideProgressLoader();
+      // Removed hideProgressLoader() call
       this.hideFullScreenLoader();
       
     } catch (error) {
       console.error('Initialization error:', error);
       this.showNotification('Error loading application', 'error');
-      this.hideProgressLoader();
+      // Removed hideProgressLoader() call
       this.hideFullScreenLoader();
     }
   }
@@ -82,11 +81,28 @@ class LEDASearch {
 
   async initializeComponents() {
     // Initialize map
-    const mapResult = initMap(this.config);
+    const mapResult = initMap(this.config); // Pass config directly since window.ledaSearch may not exist yet
     this.map = mapResult.map;
     this.markers = mapResult.markers;
     this.renderMarkers = mapResult.renderMarkers;
     this.setFocusResultCallback = mapResult.setFocusResultCallback;
+    
+    // CRITICAL: Store map instance for navigation bar access
+    this.mapInstance = mapResult; // Store the entire map result object
+    
+    // Make map instance globally accessible for navigation bar
+    if (!window.ledaSearch) {
+      window.ledaSearch = {};
+    }
+    window.ledaSearch.config = this.config;
+    window.ledaSearch.mapInstance = this.mapInstance;
+    
+    // Also make the switchMarkerType function globally accessible
+    window.switchMarkerType = (markerType) => {
+      if (this.mapInstance && this.mapInstance.switchMarkerType) {
+        this.mapInstance.switchMarkerType(markerType);
+      }
+    };
 
     // Initialize polygon manager - polygons will be shown after initial load
     // this.polygonManager = new PolygonManager(this.map);
@@ -99,20 +115,15 @@ class LEDASearch {
     this.searchHandler = new SearchHandler(this.searchEngine, this.config);
     this.resultsRenderer = new ResultsRenderer((lat, lng, zoom) => this.focusOnMap(lat, lng, zoom));
     
-    // Setup navbar
+    // Setup navbar - this will now have access to the map instance
     this.navBar = navBarRenderer;
-    this.navBar.setConfig(this.config);
     
     // Connect map to results
     this.connectMapToResults();
     
-    // Create debounced search that handles its own loader
+    // Create debounced search without progress loader handling
     this.debouncedSearch = Utilities.debounce(async () => {
-      try {
-        await this.performSearch();
-      } finally {
-        this.hideProgressLoader();
-      }
+      await this.performSearch();
     }, 300);
   }
 
@@ -135,7 +146,7 @@ class LEDASearch {
       this.fullScreenLoader.className = 'fixed inset-0 z-[9999] bg-white flex items-center justify-center';
       this.fullScreenLoader.innerHTML = `
         <div class="text-center">
-          <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500 mx-auto mb-4"></div>
           <h2 class="text-xl font-semibold text-gray-700 mb-2">Loading LEDA Search</h2>
           <p class="text-gray-500">Initializing map, data, and components...</p>
         </div>
@@ -157,7 +168,8 @@ class LEDASearch {
     }
   }
 
-  // Progress loader for actions (Alternative approach)
+  // Progress loader methods - kept but commented out for reference
+  /*
   showProgressLoader() {
     if (!this.progressLoader) {
       this.progressLoader = document.createElement('div');
@@ -165,7 +177,7 @@ class LEDASearch {
       this.progressLoader.style.display = 'block';
       
       const progressBar = document.createElement('div');
-      progressBar.className = 'h-full bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg';
+      progressBar.className = 'h-full bg-gradient-to-r from-primary-500 to-purple-500 shadow-lg';
       progressBar.style.width = '0%';
       progressBar.style.transition = 'width 0.3s ease-out';
       
@@ -202,6 +214,7 @@ class LEDASearch {
     }
     this.isLoading = false;
   }
+  */
 
   // Simplified notification system
   showNotification(message, type = 'info') {
@@ -216,16 +229,12 @@ class LEDASearch {
     setTimeout(() => {
       notification.style.opacity = '0';
       setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    }, 300);
   }
 
   // Main search method
   async performSearch() {
-    // Don't show progress loader during initial load (full screen loader is shown)
-    // Only show progress loader for user interactions after app is fully loaded
-    if (!this.isInitialLoad && !this.isLoading && this.isFullyLoaded) {
-      this.showProgressLoader();
-    }
+    // Removed all progress loader related code
     
     try {
       const results = this.searchHandler.performSearch(this.state, {
@@ -238,65 +247,56 @@ class LEDASearch {
         onAggregationsUpdate: (aggregations) => this.renderFacets(aggregations)
       });
 
-      this.updateNavBar(results.items?.length || 0);
-      
-      // Only load and show polygons when filters are active or search query exists
-      // const hasActiveFilters = this.hasActiveFilters();
-      // const hasSearchQuery = this.state.query && this.state.query.trim().length > 0;
-      
-      // if ((hasActiveFilters || hasSearchQuery) && results.items && results.items.length <= 400) {
-      //   await this.loadPolygons(results.items);
-      //   this.polygonManager.setVisible(true);
-      //   console.log('Polygons loaded and shown (filters/search active)');
-      // } else {
-      //   this.polygonManager.clearAllPolygons();
-      //   console.log('Polygons cleared (no filters/search active)');
-      // }
+    // Calculate unique pivot_ID count
+    const uniqueResultsCount = this.calculateUniqueResultsCount(results.items);
+    
+    // Update navbar with both counts
+    this.updateNavBar(results.items?.length || 0, { 
+    uniqueResultsCount: uniqueResultsCount 
+    });
       
       console.log('Search completed:', results.items?.length || 0, 'items found');
       return results;
     } catch (error) {
       console.error('Search error:', error);
       this.showNotification('Search failed', 'error');
-    } finally {
-      if (!this.isInitialLoad && this.isFullyLoaded) {
-        this.hideProgressLoader();
-      }
     }
+    // Removed finally block with hideProgressLoader()
   }
 
-  // Simplified polygon loading
-  // async loadPolygons(items) {
-  //   const itemsWithOsmIds = items.filter(item => item?.osm_id);
+  // Helper method to calculate unique pivot_ID count
+  calculateUniqueResultsCount(items) {
+    if (!items || !Array.isArray(items)) {
+      return 0;
+    }
     
-  //   if (itemsWithOsmIds.length > 0) {
-  //     try {
-  //       await this.polygonManager.loadSearchResultPolygons(itemsWithOsmIds);
-  //       console.log(`Loaded ${itemsWithOsmIds.length} polygons`);
-  //     } catch (error) {
-  //       console.error('Error loading polygons:', error);
-  //     }
-  //   } else {
-  //     this.polygonManager.clearAllPolygons();
-  //   }
-  // }
-
-  // Method to toggle polygon visibility
-  // togglePolygonVisibility(show = true) {
-  //   if (this.polygonManager) {
-  //     this.polygonManager.setVisible(show);
-  //     console.log(`Polygons ${show ? 'shown' : 'hidden'}`);
-  //   }
-  // }
+    const uniqueResultsIds = new Set();
+    
+    items.forEach(item => {
+      // Check different possible locations for pivot_ID
+      const pivotId = item.pivot_ID || 
+                    item.pivotID || 
+                    item.pivot_id || 
+                    item._source?.pivot_ID || 
+                    item._source?.pivotID || 
+                    item._source?.pivot_id ||
+                    item.source?.pivot_ID ||
+                    item.source?.pivotID ||
+                    item.source?.pivot_id;
+      
+      if (pivotId !== undefined && pivotId !== null && pivotId !== '') {
+        uniqueResultsIds.add(pivotId);
+      }
+    });
+    
+    return uniqueResultsIds.size;
+  }
 
   // State management
   async handleStateChange(action) {
     console.log('handleStateChange called with action:', action);
     
-    // Show progress loader for all filter/state changes (only if app is fully loaded)
-    if (this.isFullyLoaded) {
-      this.showProgressLoader();
-    }
+    // Removed progress loader code
     
     try {
       switch (action.type) {
@@ -329,30 +329,20 @@ class LEDASearch {
         onAggregationsUpdate: (aggregations) => this.renderFacets(aggregations)
       });
 
-      this.updateNavBar(results.items?.length || 0);
+    // Calculate unique pivot_ID count - FIX: Calculate it here
+      const uniqueResultsCount = this.calculateUniqueResultsCount(results.items);
       
-      // Only load and show polygons when filters are active or search query exists
-      // const hasActiveFilters = this.hasActiveFilters();
-      // const hasSearchQuery = this.state.query && this.state.query.trim().length > 0;
-      
-      // if ((hasActiveFilters || hasSearchQuery) && results.items && results.items.length <= 400) {
-      //   await this.loadPolygons(results.items);
-      //   this.polygonManager.setVisible(true);
-      //   console.log('Polygons loaded and shown (filters/search active)');
-      // } else {
-      //   this.polygonManager.clearAllPolygons();
-      //   console.log('Polygons cleared (no filters/search active)');
-      // }
+      // Update navbar with both counts - FIX: Use the calculated value
+      this.updateNavBar(results.items?.length || 0, { 
+        uniqueResultsCount: uniqueResultsCount 
+      });
       
       console.log('Filter search completed:', results.items?.length || 0, 'items found');
       
     } catch (error) {
       console.error('Error in handleStateChange:', error);
-    } finally {
-      if (this.isFullyLoaded) {
-        this.hideProgressLoader();
-      }
     }
+    // Removed finally block with hideProgressLoader()
   }
 
   // Check if any filters are currently active
@@ -407,9 +397,7 @@ class LEDASearch {
     if (searchInput) {
       searchInput.addEventListener('input', () => {
         this.state.query = searchInput.value;
-        if (this.isFullyLoaded) {
-          this.showProgressLoader();
-        }
+        // Removed progress loader call
         this.debouncedSearch();
       });
     }
@@ -424,14 +412,8 @@ class LEDASearch {
       
       sortSelect.addEventListener('change', (e) => {
         this.state.sort = e.target.value;
-        if (this.isFullyLoaded) {
-          this.showProgressLoader();
-        }
-        this.performSearch().finally(() => {
-          if (this.isFullyLoaded) {
-            this.hideProgressLoader();
-          }
-        });
+        // Removed progress loader calls
+        this.performSearch();
       });
     }
   }
@@ -439,36 +421,11 @@ class LEDASearch {
   setupMapEvents() {
     // Debounced map move handler
     const debouncedMapMove = Utilities.debounce(async () => {
-      if (this.isFullyLoaded) {
-        this.showProgressLoader();
-      }
-      try {
-        await this.performSearch();
-      } finally {
-        if (this.isFullyLoaded) {
-          this.hideProgressLoader();
-        }
-      }
+      // Removed progress loader calls
+      await this.performSearch();
     }, 500);
     
     this.map.on('moveend', debouncedMapMove);
-    
-    // Marker click handler
-    // this.map.on('marker:click', async (event) => {
-    //   const markerData = event.detail || event.data;
-    //   if (markerData?.osm_id) {
-    //     if (this.isFullyLoaded) {
-    //       this.showProgressLoader();
-    //     }
-    //     try {
-    //       await this.polygonManager.onMarkerClick(markerData);
-    //     } finally {
-    //       if (this.isFullyLoaded) {
-    //         this.hideProgressLoader();
-    //       }
-    //     }
-    //   }
-    // });
   }
 
   // Utility methods
@@ -483,9 +440,8 @@ class LEDASearch {
   }
 
   updateNavBar(resultsCount = 0, options = {}) {
-    this.navBar.updateFromSearchState(this.state, resultsCount, options);
+      this.navBar.updateFromSearchState(this.state, resultsCount, options);
   }
-
   // Filter management
   clearAllFilters() {
     this.state.query = '';
@@ -494,14 +450,8 @@ class LEDASearch {
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
     
-    if (this.isFullyLoaded) {
-      this.showProgressLoader();
-    }
-    this.performSearch().finally(() => {
-      if (this.isFullyLoaded) {
-        this.hideProgressLoader();
-      }
-    });
+    // Removed progress loader calls
+    this.performSearch();
   }
 
   removeFilter(facetKey, value) {
@@ -513,14 +463,8 @@ class LEDASearch {
       this.state.filters[facetKey] = [];
     }
     
-    if (this.isFullyLoaded) {
-      this.showProgressLoader();
-    }
-    this.performSearch().finally(() => {
-      if (this.isFullyLoaded) {
-        this.hideProgressLoader();
-      }
-    });
+    // Removed progress loader calls
+    this.performSearch();
   }
 
   clearSearchQuery() {
@@ -528,29 +472,9 @@ class LEDASearch {
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
     
-    if (this.isFullyLoaded) {
-      this.showProgressLoader();
-    }
-    this.performSearch().finally(() => {
-      if (this.isFullyLoaded) {
-        this.hideProgressLoader();
-      }
-    });
+    // Removed progress loader calls
+    this.performSearch();
   }
-
-  // Public API methods
-  // getPolygonManager() {
-  //   return this.polygonManager;
-  // }
-
-  // Show/hide polygons (public method for UI controls)
-  // showPolygons() {
-  //   this.togglePolygonVisibility(true);
-  // }
-
-  // hidePolygons() {
-  //   this.togglePolygonVisibility(false);
-  // }
 
   getLoadingStatus() {
     return {
