@@ -1,24 +1,23 @@
 {
   "project" : {
-    "projectShortTitle": "LEDA",
-    "projectThumbnailURL": "./imgs/LEDA_logo.png",
-    "projectTitle": "For an Atlas of Italian Ecological Literature",
-    "projectSubtitle":"From the Great Acceleration to the Pandemic",
-    "projectDescription":"For an Atlas of Italian Ecological Literature è un progetto biennale (novembre 2023-novembre 2025) realizzato in collaborazione fra l'Università IULM di Milano, l'Università degli Studi di Siena e l'Università di Bologna. <br><br> L'obiettivo è realizzare il primo atlante della letteratura ecocritica italiana: uno strumento interattivo, basato su una struttura ipertestuale, che consentirà di visualizzare, interagire e ragionare sugli spazi di quei testi che hanno tematizzato in chiave critica il rapporto uomo-ambiente. Verranno presi in considerazione testi narrativi che vanno dalla Grande accelerazione alla Pandemia, dunque per un arco temporale di circa ottant'anni.",
-    "mapInfoTitle": "Scopri l'Atlante",
-    "mapInfoDescription": "Questa mappa interattiva ti permette di esplorare i luoghi descritti dalle opere selezionate. Clicca sui marker per visualizzare informazioni dettagliate."
+    "projectShortTitle": "SASSI",
+    "projectThumbnailURL": "./imgs/SASSI_logo_bright.png",
+    "projectTitle": "Storia dell'Alpinismo: Scalate Storiche in Italia",
+    "projectSubtitle":"???",
+    "projectDescription":"Esplora la storia dell'alpinismo",
+    "mapInfoTitle": "Scopri le prime ascese",
+    "mapInfoDescription": "Questa mappa interattiva ti permette di esplorare i luoghi che hanno fatto la storia dell'alpinismo. Clicca sui marker per visualizzare informazioni dettagliate."
   },
   "datasetConfig": {
     "multivalue_rows" : {
-      "Tipologia del luogo": ", ",
-      "Tipologia dello Spazio": "; "
+      "Expedition_members": ", "
     }
   },
   "result_cards": {
-    "card_title": "Titolo", 
-    "card_subtitle": "Autore",
-    "card_subtitle_2": "Anno",
-    "card_description": "Descrizione Ecocritica"
+    "card_title": "Item_Name",  
+    "card_subtitle": "Year",
+    "card_subtitle_2": "Expedition_members",
+    "card_description": "Dispute"
   },
   "map": {
     "initialView": [46.5, 9.8],
@@ -42,69 +41,76 @@
     "debounceTime": 300,
     "defaultSort": "date_desc",
     "sortOptions": [
-      {"value": "title_asc", "label": "Titolo (Asc)"},
-      {"value": "title_desc", "label": "Titolo (Desc)"},
+      {"value": "title_asc", "label": "Montagna (Asc)"},
+      {"value": "title_desc", "label": "Montagna (Desc)"},
       {"value": "date_asc", "label": "Anno (Asc)"},
       {"value": "date_desc", "label": "Anno (Desc)"}
     ]
   },
   "resultsDisplay": {
-    "tagsToShow": ["Location", "Titolo"]
+    "tagsToShow": ["Location", "Item_Name"]
   },
   "sortings": {
     "title_desc": {
-      "field": "Titolo",
+      "field": "Item_Name",
       "order": "desc"
     },
     "title_asc": {
-      "field": "Titolo",
+      "field": "Item_Name",
       "order": "asc"
     },
     "date_desc": {
-      "field": "Anno",
+      "field": "Year",
       "order": "desc"
     },
     "date_asc": {
-      "field": "Anno",
+      "field": "Year",
       "order": "asc"
     }
   },
   "aggregations": {
-    "Location": {
-      "title": "Spazi geografici",
-      "category": "Spazi narrati",
-      "size": 100,
+    "Expedition_members": {
+      "title": "Agenti",
+      "category": "Evento Storico",
+      "size": 1000,
       "conjunction": false,
       "type": "simple"
     },
-    "Tipologia dello Spazio": {
-      "title": "Tipologia dello Spazio",
-      "category": "Spazi narrati",
+    "Year": {
+      "title": "Anno",
       "size": 100,
-      "conjunction": false,
-      "type": "taxonomy"
-    },
-    "Titolo": {
-      "title": "Titolo",
-      "category": "Opere di riferimento",
-      "size": 100,
-      "conjunction": false,
-      "type": "simple"
-    },
-    "Autore": {
-      "title": "Autori",
-      "size": 100,
-      "category": "Opere di riferimento",
-      "conjunction": false,
-      "type": "simple"
-    },
-    "Anno": {
-      "title": "Anni di pubblicazione",
-      "size": 100,
-      "category": "Opere di riferimento",
+      "category": "Evento Storico",
       "conjunction": false,
       "type": "range"
+    },
+    "Location": {
+      "title": "Montagna",
+      "category": "Collocazione dell'evento",
+      "size": 1000,
+      "conjunction": false,
+      "type": "simple"
+    },
+    "altitude_span": {
+      "title": "Altitudine",
+      "size": 100,
+      "category": "Collocazione dell'evento",
+      "conjunction": false,
+      "type": "range"
+    },
+    "SOIUSA": {
+      "title": "Divisione SOIUSA",
+      "category": "Collocazione dell'evento",
+      "size": 1000,
+      "conjunction": false,
+      "type": "taxonomy"
+    }, 
+    "Dispute": {
+      "title": "Dispute e Ipotesi",
+      "category": "Opinioni sull'evento",
+      "size": 1000,
+      "conjunction": false,
+      "type": "simple"
     }
   },
-  "searchableFields": ["Titolo", "Anno"]
+  "searchableFields": ["Item_Name", "Year", "Location"]
 }

@@ -357,10 +357,10 @@ input[type="checkbox"]:checked::before {
 }
 
 /* Animation */
-@keyframes pulse {
+/* @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.8; }
-}
+} */
 
 /* HEADER NAVBAR */
 header {
@@ -490,8 +490,6 @@ header {
   top: 2px;
   left: 50%;
   transform: translateX(-50%);
-  @apply bg-secondary-500;
-  color: white;
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -523,7 +521,7 @@ header {
   }
 
 .numbered-pin.special .pin-point {
-  border-top-color: #ef4444;
+  border-top-color: @apply border-t-secondary-500
 }
 
 .numbered-pin-container {
@@ -555,3 +553,13 @@ header {
   background: none !important;
   border: none !important;
 }
+
+/* POLYGONS */
+.polygon {
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill-rule: evenodd;
+  @apply stroke-white fill-secondary-400;
+}
+

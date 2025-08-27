@@ -1,4 +1,4 @@
-// Enhanced initMap.js with working polygon loading on marker click
+// Enhanced initMap.js with polygon toggle system integrated
 
 import 'leaflet/dist/leaflet.css'; 
 import L from 'leaflet';
@@ -28,6 +28,178 @@ function initMap(config) {
 
     polygonManager = new PolygonManager(map);
     polygonManager.loadPolygonRepository();
+
+    // ===========================================
+    // POLYGON TOGGLE SYSTEM - INTEGRATED
+    // ===========================================
+    
+    // Variabile globale per tracciare lo stato dei poligoni
+    window.polygonState = {
+        visiblePolygons: new Set(),
+        polygonManager: polygonManager
+    };
+
+    /**
+     * Controlla se esiste un poligono per una determinata location
+     */
+    function hasPolygonForLocation(locationName) {
+        if (!window.polygonState.polygonManager || !locationName) {
+            return false;
+        }
+        
+        // Cerca il poligono nel repository
+        const polygon = window.polygonState.polygonManager.findPolygonByName(locationName);
+        return polygon !== null;
+    }
+
+    /**
+     * Genera un ID univoco per la location
+     */
+    function getLocationId(coords, locationName) {
+        if (coords && coords.length >= 2) {
+            return `coord_${coords[0]}_${coords[1]}`;
+        }
+        return `name_${locationName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
+    }
+
+    /**
+     * Controlla se un poligono è attualmente visibile
+     */
+    function isPolygonVisible(coords, locationName) {
+        const locationId = getLocationId(coords, locationName);
+        return window.polygonState.visiblePolygons.has(locationId);
+    }
+
+    /**
+     * Mostra un poligono sulla mappa
+     */
+    function showPolygonInternal(locationId, locationName, coords, polygonManager) {
+        // Trova il poligono GeoJSON
+        const geojson = polygonManager.findPolygonByName(locationName);
+        if (!geojson) {
+            console.error('GeoJSON non trovato per:', locationName);
+            return null;
+        }
+
+        // Crea il layer del poligono
+        const layer = polygonManager.createPolygonLayer(geojson, {
+            display_name: locationName,
+            lat: coords[0],
+            lon: coords[1]
+        });
+
+        // Aggiungi alla mappa
+        polygonManager.polygonLayerGroup.addLayer(layer);
+        
+        // Salva il riferimento
+        polygonManager.polygonLayers.set(locationId, {
+            layer: layer,
+            locationData: {
+                display_name: locationName,
+                lat: coords[0],
+                lon: coords[1]
+            }
+        });
+
+        // Restituisci il layer per il focus
+        return layer;
+    }
+
+    /**
+     * Nascondi un poligono dalla mappa
+     */
+    function hidePolygon(locationId, polygonManager) {
+        const polygonInfo = polygonManager.polygonLayers.get(locationId);
+        if (polygonInfo) {
+            polygonManager.polygonLayerGroup.removeLayer(polygonInfo.layer);
+            polygonManager.polygonLayers.delete(locationId);
+        }
+    }
+
+    /**
+     * Aggiorna il bottone nel popup aperto
+     */
+    function updatePopupButton(locationId, locationName, coords) {
+        const openPopup = document.querySelector('.leaflet-popup-content');
+        if (!openPopup) return;
+
+        const polygonButton = openPopup.querySelector('.polygon-btn');
+        if (!polygonButton) return;
+
+        // Aggiorna l'icona e il titolo
+        const isVisible = window.polygonState.visiblePolygons.has(locationId);
+        const hasPolygon = hasPolygonForLocation(locationName);
+        
+        const eyeIcon = isVisible ? 
+            // Occhio chiuso/barrato - FIXED
+            `<svg class="w-6 h-6 text-white-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-width="2" d="M3.933 13.909A4.357 4.357 0 0 1 3 12c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 21 12c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 22 7"/>
+              <path stroke="currentColor" stroke-width="2" d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+            </svg>` :
+            // Occhio aperto
+            `<svg class="w-6 h-6 text-white-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
+              <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+            </svg>`;
+
+        const title = hasPolygon ? 
+            (isVisible ? 'Nascondi poligono' : 'Mostra poligono') : 
+            'Poligono non disponibile';
+
+        polygonButton.innerHTML = eyeIcon;
+        polygonButton.title = title;
+        
+        // Aggiorna le classi CSS
+        polygonButton.className = hasPolygon ? 
+            'polygon-btn ml-1 polygon-enabled' : 
+            'polygon-btn ml-1 polygon-disabled';
+    }
+
+    /**
+     * NUOVA FUNZIONE: Toggle per mostrare/nascondere poligoni
+     */
+    window.togglePolygonDisplay = function(locationId, locationName, coords) {
+        const polygonManager = window.polygonState.polygonManager;
+        
+        if (!polygonManager) {
+            console.error('PolygonManager non inizializzato');
+            return;
+        }
+
+        // Controlla se il poligono esiste
+        const hasPolygon = hasPolygonForLocation(locationName);
+        if (!hasPolygon) {
+            console.log('Nessun poligono disponibile per:', locationName);
+            return;
+        }
+
+        const isCurrentlyVisible = window.polygonState.visiblePolygons.has(locationId);
+
+        if (isCurrentlyVisible) {
+            // Nascondi il poligono
+            hidePolygon(locationId, polygonManager);
+            window.polygonState.visiblePolygons.delete(locationId);
+            console.log('Poligono nascosto:', locationName);
+        } else {
+            // Mostra il poligono
+            showPolygonInternal(locationId, locationName, coords, polygonManager);
+            window.polygonState.visiblePolygons.add(locationId);
+            
+            // Focus sul poligono appena mostrato
+            setTimeout(() => {
+                polygonManager.fitBoundsToAll();
+            }, 100);
+            
+            console.log('Poligono mostrato:', locationName);
+        }
+
+        // Aggiorna il popup se è aperto
+        updatePopupButton(locationId, locationName, coords);
+    };
+
+    // ===========================================
+    // END POLYGON TOGGLE SYSTEM
+    // ===========================================
 
     // Create a custom icon using Lucide MapPin
     const createCustomIcon = (count, isSpecial = false) => {
@@ -74,6 +246,48 @@ function initMap(config) {
 
     // Add custom CSS
     const style = document.createElement('style');
+    style.innerHTML = `
+      .polygon-btn {
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .polygon-enabled {
+        opacity: 0.9;
+      }
+
+      .polygon-enabled:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        opacity: 1;
+        transform: scale(1.1);
+      }
+
+      .polygon-disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        filter: grayscale(100%);
+      }
+
+      .polygon-disabled:hover {
+        background-color: transparent;
+        transform: none;
+      }
+
+      .polygon-btn svg {
+        transition: transform 0.2s ease;
+      }
+
+      .polygon-enabled:active svg {
+        transform: scale(0.9);
+      }
+    `;
     document.head.appendChild(style);
 
     // Store reference to special circle for cleanup
@@ -84,7 +298,7 @@ function initMap(config) {
     let circleMarkers = [];
     let circleLabels = [];
 
-    // FIXED: Function to load polygon for a specific location
+    // FIXED: Function to load polygon for a specific location (legacy support)
     const loadPolygonForLocation = async (lat, lon, locationName) => {
       if (!polygonManager) {
         console.warn('PolygonManager not initialized');
@@ -147,21 +361,45 @@ function initMap(config) {
       `;
     };
 
-    // Function to create polygon button for location
+    // MODIFIED: Function to create polygon button for location with toggle logic
     const createPolygonButton = (coords, locationName) => {
+      const hasPolygon = hasPolygonForLocation(locationName);
+      const isVisible = isPolygonVisible(coords, locationName);
+      const locationId = getLocationId(coords, locationName);
+      
+      // Determina le classi CSS e lo stile
+      const buttonClass = hasPolygon ? 
+        'polygon-btn ml-1 polygon-enabled' : 
+        'polygon-btn ml-1 polygon-disabled';
+        
+      const title = hasPolygon ? 
+        (isVisible ? 'Nascondi poligono' : 'Mostra poligono') : 
+        'Poligono non disponibile';
+
+      // Icona SVG - cambia in base allo stato
+      const eyeIcon = isVisible ? 
+        // Occhio chiuso/barrato (quando il poligono è visibile) - FIXED
+        `<svg class="w-6 h-6 text-white-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+          <path stroke="currentColor" stroke-width="2" d="M3.933 13.909A4.357 4.357 0 0 1 3 12c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 21 12c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M2 17 22 7"/>
+          <path stroke="currentColor" stroke-width="2" d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+        </svg>` :
+        // Occhio aperto (quando il poligono NON è visibile)
+        `<svg class="w-6 h-6 text-white-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+          <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
+          <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+        </svg>`;
+
       return `
-        <button class="polygon-btn ml-1" 
-                onclick="window.showPolygon(${coords[0]}, ${coords[1]}, '${locationName.replace(/'/g, "\\'")}')"
-                title="Mostra poligono area">
-          <svg class="w-6 h-6 text-white-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-            <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
-            <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-          </svg>
+        <button class="${buttonClass}" 
+                onclick="window.togglePolygonDisplay('${locationId}', '${locationName.replace(/'/g, "\\'")}', [${coords[0]}, ${coords[1]}])"
+                title="${title}"
+                ${!hasPolygon ? 'disabled' : ''}>
+          ${eyeIcon}
         </button>
       `;
     };
 
-    // Make polygon loading function globally accessible
+    // Make polygon loading function globally accessible (legacy support)
     window.showPolygon = loadPolygonForLocation;
 
     // Add these variables at the top of your initMap function, after the existing variables
@@ -444,11 +682,15 @@ ${items.map((item, index) => `
             const coordsKey = `${coords[0]},${coords[1]}`;
             const isSpecial = coordsKey === SPECIAL_COORDS_KEY;
 
-            let popupContent = createPopupContent(group, isSpecial, config);
-
             const marker = L.marker(coords, {
                 icon: createCustomIcon(items.length, isSpecial)
-            }).bindPopup(popupContent);
+            });
+
+            // Bind popup con evento per aggiornare stato quando si apre
+            marker.bindPopup(() => {
+                // Ricrea il contenuto del popup ogni volta che viene aperto
+                return createPopupContent(group, isSpecial, config);
+            });
 
             if (isSpecial) {
                 specialCircle = L.circle(coords, {
@@ -464,7 +706,6 @@ ${items.map((item, index) => `
         });
     };
 
-    // Function to show pins with numbers
     const showPinsWithNumbers = () => {
         const locationGroups = {};
         
@@ -491,29 +732,63 @@ ${items.map((item, index) => `
             locationGroups[key].items.push(item);
         });
 
+        // Get all occurrence counts to determine color scale
+        const allCounts = Object.values(locationGroups).map(group => group.items.length);
+        const maxCount = Math.max(...allCounts);
+        const minCount = Math.min(...allCounts);
+
+        // Function to get primary color shade based on count (from lightest to darkest)
+        const getPrimaryShade = (count) => {
+            if (maxCount === minCount) {
+                return { bg: 'bg-secondary-500', text: 'text-white' }; // Default shade if all counts are the same
+            }
+            
+            // Normalize count to 0-1 range
+            const normalized = (count - minCount) / (maxCount - minCount);
+            
+            // Map to shade range (100-900, where 100 is lightest for lowest count, 900 is darkest for highest count)
+            const shadeValue = 1 + Math.round(normalized * 8); // 1-9 range
+            const shade = shadeValue * 100; // 100-900
+            
+            // Determine text color based on shade (light backgrounds get dark text, dark backgrounds get light text)
+            const textColor = shade <= 400 ? 'text-secondary-900' : 'text-white';
+            
+            return { bg: `bg-secondary-${shade}`, text: textColor };
+        };
+
         // Create individual pin markers with numbers
         Object.values(locationGroups).forEach(group => {
             const { name, items, coords } = group;
             const coordsKey = `${coords[0]},${coords[1]}`;
             const isSpecial = coordsKey === SPECIAL_COORDS_KEY;
+            const count = items.length;
+
+            // Get the appropriate color classes
+            const colorClasses = isSpecial ? 
+                { bg: '', text: '' } : 
+                getPrimaryShade(count);
 
             // Create a numbered pin icon
             const numberedIcon = L.divIcon({
-                html: `<div class="numbered-pin ${isSpecial ? 'special' : ''}">
-                         <div class="pin-number">${items.length}</div>
-                         <div class="pin-point"></div>
-                       </div>`,
+                html: `<div class="numbered-pin">
+                        <div class="pin-number ${colorClasses.bg} ${colorClasses.text}">${count}</div>
+                        <div class="pin-point"></div>
+                      </div>`,
                 className: 'numbered-pin-container',
                 iconSize: [30, 40],
                 iconAnchor: [15, 40],
                 popupAnchor: [0, -40]
             });
 
-            let popupContent = createPopupContent(group, isSpecial, config);
-
             const marker = L.marker(coords, {
                 icon: numberedIcon
-            }).bindPopup(popupContent);
+            });
+
+            // Bind popup con evento per aggiornare stato quando si apre
+            marker.bindPopup(() => {
+                // Ricrea il contenuto del popup ogni volta che viene aperto
+                return createPopupContent(group, isSpecial, config);
+            });
 
             if (isSpecial) {
                 specialCircle = L.circle(coords, {
@@ -531,7 +806,6 @@ ${items.map((item, index) => `
         });
     };
 
-    // Function to show proportional circles without displaying counts
     // Function to show proportional circles without displaying counts
     const showProportionalCircles = () => {
         const locationGroups = {};
@@ -601,10 +875,11 @@ ${items.map((item, index) => `
                 weight: items.length === 1 ? 2 : Math.min(2 + Math.floor(items.length / 5), 6) // Vary border thickness too
             });
 
-            // Create popup content
-            let popupContent = createPopupContent(group, isSpecial, config);
-            
-            circle.bindPopup(popupContent);
+            // Create popup content and bind it dynamically
+            circle.bindPopup(() => {
+                // Ricrea il contenuto del popup ogni volta che viene aperto
+                return createPopupContent(group, isSpecial, config);
+            });
 
             // Add special circle if needed
             if (isSpecial) {
