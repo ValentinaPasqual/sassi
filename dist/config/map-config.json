@@ -10,12 +10,13 @@
   },
   "datasetConfig": {
     "multivalue_rows" : {
-      "Expedition_members": ", "
+      "Expedition_members": ", ",
+      "state": "/"
     }
   },
   "result_cards": {
     "card_title": "Item_Name",  
-    "card_subtitle": "Year",
+    "card_subtitle": "Date",
     "card_subtitle_2": "Expedition_members",
     "card_description": "Dispute"
   },
@@ -85,6 +86,13 @@
     },
     "Location": {
       "title": "Montagna",
+      "category": "Collocazione dell'evento",
+      "size": 1000,
+      "conjunction": false,
+      "type": "simple"
+    },
+    "state": {
+      "title": "Stato",
       "category": "Collocazione dell'evento",
       "size": 1000,
       "conjunction": false,
