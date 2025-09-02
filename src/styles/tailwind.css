@@ -435,9 +435,21 @@ header {
   background: none;
   border: none;
 }
+
 .special-marker {
   filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
 }
+
+.special-marker svg {
+  @apply text-primary-500 fill-primary-500;
+}
+
+.special {
+  @apply stroke-primary-500 fill-primary-500;
+  stroke-width: 4;
+  fill-opacity: 0.15;
+}
+
 .leaflet-popup-content-wrapper {
   padding: 0;
   border-radius: 8px;
@@ -503,7 +515,7 @@ header {
 }
 
 .numbered-pin.special .pin-number {
-  background: #ef4444;
+  @apply bg-primary-500;
 }
 
 .numbered-pin .pin-point {
@@ -545,8 +557,11 @@ header {
 }
 
 .circle-count.special {
-  border-color: #ef4444;
-  color: #ef4444;
+  @apply border-primary-500 text-primary-500;
+}
+
+.special {
+  @apply bg-primary-500;
 }
 
 .circle-count-container {
@@ -563,3 +578,43 @@ header {
   @apply stroke-white fill-secondary-400;
 }
 
+.polygon-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.polygon-enabled {
+  opacity: 0.9;
+}
+
+.polygon-enabled:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.polygon-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
+.polygon-disabled:hover {
+  background-color: transparent;
+  transform: none;
+}
+
+.polygon-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.polygon-enabled:active svg {
+  transform: scale(0.9);
+}

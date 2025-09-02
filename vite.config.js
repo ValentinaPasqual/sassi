@@ -1,15 +1,16 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
 
+const BASE_PATH = '/sassi/';
+
 export default defineConfig({
-  base: '/sassi/',
+  base: BASE_PATH,
   
-  resolve: {
-    alias: {
-      '@imgs': resolve(__dirname, 'src/styles/imgs')
-    }
+  define: {
+    __APP_ID__: JSON.stringify(BASE_PATH.replace(/\//g, '') || 'root')
   },
-  
+
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

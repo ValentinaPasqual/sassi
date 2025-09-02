@@ -164,9 +164,9 @@ export class ResultsRenderer {
       <div class="mb-4">
         <h1 class="text-xl font-bold text-gray-900 leading-tight">${work.Title}</h1>
         <div class="flex items-center gap-4 mt-2">
-          ${work.Subtitle ? `<p class="text-lg text-gray-700 font-medium break-words">${work.Subtitle}</p>` : ''}
-          ${work.Subtitle && work.Subtitle2 ? `<span class="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0 break-words"></span>` : ''}
-          ${work.Subtitle2 ? `<p class="text-lg text-gray-600 font-mono break-words w-full">${work.Subtitle2}</p>` : ''}
+          ${work.Subtitle ? `<p class="text-lg text-gray-700 font-medium truncate">${work.Subtitle}</p>` : ''}
+          ${work.Subtitle && work.Subtitle2 ? `<span class="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>` : ''}
+          ${work.Subtitle2 ? `<p class="text-lg text-gray-600 font-mono flex-shrink-0">${work.Subtitle2}</p>` : ''}
         </div>
       </div>
       
