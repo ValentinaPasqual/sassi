@@ -18,7 +18,7 @@
     "card_title": "Item_Name",  
     "card_subtitle": "Date",
     "card_subtitle_2": "Expedition_members",
-    "card_description": "Dispute"
+    "card_description": "Event_description"
   },
   "map": {
     "initialView": [46.5, 9.8],
