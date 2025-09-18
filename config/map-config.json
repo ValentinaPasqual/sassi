@@ -1,0 +1,133 @@
+{
+  "project" : {
+    "projectShortTitle": "SASSI",
+    "projectThumbnailURL": "SASSI_logo_dark.png",
+    "projectTitle": "Storia dell'Alpinismo",
+    "projectSubtitle":"Scalate Storiche in Italia",
+    "projectDescription":"Il Progetto SASSI mappa la storia delle prime ascensioni sull'arco alpino, creando un atlante interattivo dell'alpinismo pionieristico dal XVIII al XX secolo. <br><br> Le mappe mostrano l'evoluzione cronologica dell'esplorazione alpina, contestualizzando ogni ascensione nel proprio periodo storico. Il progetto serve come strumento di ricerca per storici e appassionati, rivelando pattern geografici dell'attività alpinistica e le correlazioni tra sviluppo turistico ed esplorazione.",
+    "mapInfoTitle": "Scopri le prime ascese",
+    "mapInfoDescription": "Questa mappa interattiva ti permette di esplorare i luoghi che hanno fatto la storia dell'alpinismo. Clicca sui marker per visualizzare informazioni dettagliate."
+  },
+  "datasetConfig": {
+    "multivalue_rows" : {
+      "Expedition_members": ", ",
+      "Fonti_primarie": "|"
+    }, 
+    "fields": {                 
+      "catalogue": [
+        "fonte_primaria",
+        "Expedition_members", 
+        "Dispute",
+        "Type",
+        "Item_Name",
+        "Fonti_primarie",
+        "Fonti_secondarie",
+        "Altri_riferimenti"
+      ],
+      "geodata": [
+        "altitude_span",
+        "SOIUSA"
+      ]
+    }
+  },
+  "result_cards": {
+    "card_title": "Item_Name",  
+    "card_subtitle": "Year",
+    "card_subtitle_2": "Expedition_members",
+    "card_description": "Note"
+  },
+  "map": {
+    "initialView": [46.5, 9.8],
+    "initialZoom": 7,
+    "tileLayers": {
+      "Default": {
+        "tileLayer": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "attribution": "© OpenStreetMap contributors"
+      },
+      "Stadia.StamenTerrain" : {
+        "tileLayer": "https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png",
+        "attribution": "© OpenStreetMap contributors 222"
+        },
+      "Stadia.StamenTonerLite" : {
+        "tileLayer": "https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png", 
+	      "attribution": "&copy; <a href='https://www.stadiamaps.com/' target='_blank'>Stadia Maps</a> &copy; <a href='https://www.stamen.com/' target='_blank'>Stamen Design</a> &copy; <a href='https://openmaptiles.org/' target='_blank'>OpenMapTiles</a> &copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+      }
+    }
+  },
+  "searchConfig": {
+    "debounceTime": 300,
+    "defaultSort": "date_desc",
+    "sortOptions": [
+      {"value": "title_asc", "label": "Mountain (Asc)"},
+      {"value": "title_desc", "label": "Mountain (Desc)"},
+      {"value": "date_asc", "label": "Year (Asc)"},
+      {"value": "date_desc", "label": "Year (Desc)"}
+    ]
+  },
+  "resultsDisplay": {
+    "tagsToShow": ["Location", "Item_Name"]
+  },
+  "sortings": {
+    "title_desc": {
+      "field": "Item_Name",
+      "order": "desc"
+    },
+    "title_asc": {
+      "field": "Item_Name",
+      "order": "asc"
+    },
+    "date_desc": {
+      "field": "Year",
+      "order": "desc"
+    },
+    "date_asc": {
+      "field": "Year",
+      "order": "asc"
+    }
+  },
+  "aggregations": {
+    "Expedition_members": {
+      "title": "I membri",
+      "category": "Le spedizioni",
+      "size": 1000,
+      "conjunction": false,
+      "type": "simple"
+    },
+    "Year": {
+      "title": "Le date",
+      "size": 100,
+      "category": "Le spedizioni",
+      "conjunction": false,
+      "type": "range"
+    },
+    "Location": {
+      "title": "Le cime",
+      "category": "I luoghi delle spedizioni",
+      "size": 1000,
+      "conjunction": false,
+      "type": "simple"
+    },
+    "altitude_span": {
+      "title": "Le altitudini",
+      "size": 100,
+      "category": "I luoghi delle spedizioni",
+      "conjunction": false,
+      "type": "range"
+    },
+    "SOIUSA": {
+      "title": "Le divisioni SOIUSA",
+      "category": "I luoghi delle spedizioni",
+      "size": 1000,
+      "conjunction": false,
+      "type": "taxonomy"
+    }, 
+    "Type": {
+      "title": "Dispute e Ipotesi",
+      "category": "Le imprese incerte",
+      "size": 1000,
+      "conjunction": false,
+      "type": "simple"
+    }
+  },
+  "searchableFields": ["Item_Name", "Year", "Location"]
+}
