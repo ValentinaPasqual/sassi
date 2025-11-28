@@ -113,7 +113,7 @@ function initMap(config) {
     let circleMarkers = [];
     let circleLabels = [];
 
-    // FIXED: Function to load polygon for a specific location (legacy support)
+    // FIXED: Function to load polygon for a specific location 
     const loadPolygonForLocation = async (lat, lon, locationName) => {
       if (!polygonManager) {
         console.warn('PolygonManager not initialized');

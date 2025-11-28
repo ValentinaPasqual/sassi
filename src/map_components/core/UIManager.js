@@ -12,8 +12,8 @@ export class UIManager {
       this.fullScreenLoader.innerHTML = `
         <div class="text-center">
           <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <h2 class="text-xl font-semibold text-gray-700 mb-2">Loading LEDA Search</h2>
-          <p class="text-gray-500">Initializing map, data, and components...</p>
+          <h2 class="text-xl font-semibold text-gray-700 mb-2">Caricamento ...</h2>
+          <p class="text-gray-500">Inizializzazione dei dati, della mappa e dei componenti </p>
         </div>
       `;
       document.body.appendChild(this.fullScreenLoader);

@@ -18,7 +18,7 @@ html, body {
   height: 100%;
   color: #000000;
   -webkit-font-smoothing: antialiased;
-  @apply font-body;
+  /* @apply font-body; */
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -26,11 +26,87 @@ h1, h2, h3, h4, h5, h6 {
   @apply font-headings;
 }
 
-button, a {
-  @apply font-body;
+/* INDEX */
+
+.scroll-arrow-container {
+  position: fixed;
+  z-index: 100;
+  cursor: pointer;
+  bottom: 2rem;
+  opacity: 0;
+  transform: translateY(0);
+  /* Calcola il margine laterale del contenitore */
+  left: max(1rem, calc((100vw - 80rem) / 2 + 1rem)); /* 80rem = max-w-7xl (1280px) */
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  display: none;
+  animation: bounce 2s ease-in-out infinite;
 }
 
-/* Map container */
+@media (min-width: 1024px) {
+  .scroll-arrow-container {
+    left: max(2rem, calc((100vw - 80rem) / 2 + 2rem));
+  }
+}
+
+.scroll-arrow-container.active {
+  display: block;
+  opacity: 0.7;
+}
+
+.scroll-arrow-container:hover {
+  opacity: 1;
+  transform: translateY(5px);
+}
+
+.scroll-arrow-svg {
+  @apply fill-secondary-500;
+  width: 50px;
+  height: 50px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  transition: all 0.3s ease;
+}
+
+.scroll-arrow-container:hover .scroll-arrow-svg {
+  @apply fill-secondary-600;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
+  transform: scale(1.1);
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(15px);
+  }
+}
+
+/* Versione alternativa con pulsazione */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Variante con colore secondary */
+.scroll-arrow-svg.secondary-color {
+  @apply fill-secondary-400;
+}
+
+.scroll-arrow-container:hover .scroll-arrow-svg.secondary-color {
+  @apply fill-secondary-500;
+}
+
+/* button, a {
+  @apply font-body;
+} */
+
+/* Map container for both index and map */
 #map { 
   left: 0;
   width: 100vw;
@@ -71,7 +147,7 @@ body#map-page #map {
   flex-direction: column;
   gap: 1.5rem;
   max-width: 20rem;
-}
+} 
 
 .facet-hidden {
   display: none !important;
@@ -142,12 +218,12 @@ body#map-page #map {
   background: #ffffff;
   transition: all 0.3s ease;
   max-height: none;
-  overflow: visible;
+  /* overflow: visible; */
 }
 
 #results {
   max-height: 70vh;
-  overflow-y: auto;
+  /* overflow-y: auto; */
   overflow-x: hidden;
 }
 
@@ -225,8 +301,8 @@ input[type="checkbox"]:checked::before {
 .result-card p {
   margin: 0;
   color: #64748b;
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: 0.85rem;
+  line-height: 1.2;
 }
 
 .result-card .result-meta {
@@ -389,24 +465,6 @@ input[type="checkbox"].form-checkbox:indeterminate::after {
   background: linear-gradient(to bottom, #64748b, #475569);
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .result-card {
-    @apply bg-gray-800 border-gray-700 text-white;
-  }
-  
-  .result-card h3 {
-    @apply text-gray-100;
-  }
-  
-  .result-card p {
-    @apply text-gray-300;
-  }
-  
-  .result-highlighted {
-    box-shadow: 0 0 20px rgba(var(--primary), 0.5);
-  }
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -1074,6 +1132,7 @@ header {
     align-items: center;
     justify-content: center;
     padding: 12px;
+    background-color: white;
 }
 
 .footer-logo-slide img {
@@ -1205,3 +1264,147 @@ header {
         max-height: 500px;
     }
 }
+
+/* PERCORSO.JS */
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Stili per il contenuto convertito da Mammoth */
+        #content a {
+            @apply text-primary-500 hover:text-secondary-500 underline decoration-2 underline-offset-4 transition-colors duration-200;
+        }
+
+        #content h2 {
+            @apply font-headings text-3xl font-bold text-primary-500 mt-8 mb-4;
+        }
+
+        #content h3 {
+            @apply font-headings text-2xl font-semibold text-secondary-500 mt-6 mb-3;
+        }
+
+        #content h4 {
+            @apply font-headings text-xl font-semibold text-gray-700 mt-4 mb-2;
+        }
+
+        #content ul, #content ol {
+            @apply ml-6 mb-4 space-y-2;
+        }
+
+        #content ul li {
+            @apply list-disc text-gray-700 font-body text-lg;
+        }
+
+        #content ol li {
+            @apply list-decimal text-gray-700 font-body text-lg;
+        }
+
+        #content img {
+            @apply max-w-full h-auto my-6 rounded-lg shadow-md;
+        }
+
+        #content strong {
+            @apply font-bold text-gray-900;
+        }
+
+        #content em {
+            @apply italic;
+        }
+
+        #content blockquote {
+            @apply border-l-4 border-accent-500 pl-4 my-4 italic;
+        }
+
+        #content table {
+            @apply w-full border-collapse my-6;
+        }
+
+        #content th {
+            @apply bg-primary-300 text-white font-headings font-semibold p-3 text-left;
+        }
+
+        #content td {
+            @apply border border-gray-300 p-3 font-body;
+        }
+
+        #content tr:nth-child(even) {
+            @apply bg-gray-50;
+        }
+
+        /* Icona per link esterni */
+        #content a[target="_blank"]::after {
+            content: '';
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-left: 4px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23667eea'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            vertical-align: baseline;
+        }
+
+
+/* Side panel di percorso.js che riprende la modale di RenderModal.js ma senza padding*/
+body.percorso #side-panel-content > div > div {
+  padding: 0 !important;
+}
+
+body.percorso #content {
+  @apply max-w-4xl mx-auto px-12 py-16 bg-white;
+  flex:1; 
+  overflow-y:auto; 
+  transition: flex 0.3s ease;
+}
+
+body.percorso #content p {
+  @apply font-body text-lg text-black mb-4 leading-relaxed;
+  text-align: justify;
+  line-height: 2;
+  font-size: 1rem;
+}
+
+body.percorso #abstract-content {
+  line-height: 1.5 !important
+}
+
+ @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-8px);
+        }
+    }
+    
+    .footnote-ref {
+        color: white !important;
+        padding: 0 2px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    
+    .footnote-ref:hover {
+        @apply bg-secondary-700 
+    }
+    
+    .footnote-popup {
+        z-index:9999 !important; 
+        min-width: 30vw;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        z-index:999999 !important
+    }
+
+
+li[id^="footnote-"] {display:none !important} /* nascondde le footnote dalla fine del documento */
+
+    

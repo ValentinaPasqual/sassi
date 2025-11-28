@@ -6,7 +6,6 @@
 
 const base = import.meta.env.BASE_URL;
 
-
 export class PolygonManager {
   constructor(map) {
     this.map = map;
@@ -54,7 +53,13 @@ export class PolygonManager {
 
     try {
       console.log('Loading polygon repository...');
-      const response = await fetch(`${base}/data/polygons.json`);
+      
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const url = `${baseUrl}data/polygons.json`.replace(/\/+/g, '/'); // Rimuovi doppie slash
+      
+      console.log('Fetching from:', url);
+      
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
       
       const rawData = await response.json();
@@ -62,7 +67,7 @@ export class PolygonManager {
       
       // Clean data - only keep valid polygons
       for (const [key, info] of Object.entries(rawData)) {
-        if ((info?.osm_id || info?.osm_id === 0) && this.isValidGeometry(info.geojson)) {  // oms_id === 0 is used for drawn polygons :)
+        if ((info?.osm_id || info?.osm_id === 0) && this.isValidGeometry(info.geojson)) {
           const filtered = this.filterValidGeometries(info.geojson);
           if (filtered) {
             this.polygonRepository[key] = { ...info, geojson: filtered };

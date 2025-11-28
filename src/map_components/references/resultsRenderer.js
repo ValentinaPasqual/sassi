@@ -164,9 +164,9 @@ return `
       <div class="min-w-0 flex-1">
         <h1 class="text-xl font-bold text-gray-900 leading-tight">${work.Title}</h1>
         <div class="flex items-center gap-4 mt-2">
-          ${work.Subtitle ? `<p class="text-lg text-gray-700 font-medium truncate">${work.Subtitle}</p>` : ''}
+          ${work.Subtitle ? `<p class="text-lg text-gray-700 font-medium">${work.Subtitle}</p>` : ''}
           ${work.Subtitle && work.Subtitle2 ? `<span class="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>` : ''}
-          ${work.Subtitle2 ? `<p class="text-lg text-gray-600 font-mono flex-shrink-0">${work.Subtitle2}</p>` : ''}
+          ${work.Subtitle2 ? `<p class="text-lg text-gray-600 font-mono break-words overflow-hidden">${work.Subtitle2}</p>` : ''}
         </div>
       </div>
       
@@ -184,7 +184,7 @@ return `
     ${work.Description ? `
       <div class="flex items-stretch gap-2">
         <div class="w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full shadow-sm flex-shrink-0"></div>
-        <p class="text-xs text-gray-600 flex-1">${work.Description}</p>
+        <p class="text-xxs text-gray-600 flex-1 leading-tight">${work.Description}</p>
       </div>
     ` : ''}
     

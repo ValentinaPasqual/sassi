@@ -102,13 +102,13 @@ function createAggregationCard(aggregation, index) {
             buttonHoverBg = 'hover:bg-gradient-to-r hover:from-white hover:to-primary-200';
             break;
         case 'range':
-            headerBgClass = 'bg-gradient-to-r from-secondary-600 to-secondary-800';
-            buttonTextColor = 'text-secondary-600';
+            headerBgClass = 'bg-gradient-to-r from-primary-600 to-primary-800';
+            buttonTextColor = 'text-primary-600';
             buttonHoverBg = 'hover:bg-gradient-to-r hover:from-white hover:to-secondary-200';
             break;
         case 'taxonomy':
-            headerBgClass = 'bg-gradient-to-r from-accent-600 to-accent-800';
-            buttonTextColor = 'text-accent-600';
+            headerBgClass = 'bg-gradient-to-r from-primary-600 to-primary-800';
+            buttonTextColor = 'text-primary-600';
             buttonHoverBg = 'hover:bg-gradient-to-r hover:from-white hover:to-accent-200';
             break;
     }

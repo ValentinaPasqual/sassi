@@ -7,7 +7,6 @@ import { UniversalFooter } from './navigation/universalFooter.js';
 import './styles/tailwind.css'
 import './styles/fonts.css'
 
-
 // Funzione per aggiornare i contenuti dinamicamente
 function updateProjectDescription(config) {
 
@@ -18,10 +17,10 @@ function updateProjectDescription(config) {
   // Aggiorna elementi in base agli attributi data-*
 
   const projectTitle = document.querySelector('[data-content="project-title"]');
-  if (projectTitle) projectTitle.textContent = config.project.projectTitle;
+  if (projectTitle) projectTitle.innerHTML = config.project.projectTitle; 
   
   const projectSubtitle = document.querySelector('[data-content="project-subtitle"]');
-  if (projectSubtitle) projectSubtitle.textContent = config.project.projectSubtitle;
+  if (projectSubtitle) projectSubtitle.innerHTML = config.project.projectSubtitle;  
   
   const mapInfoTitle = document.querySelector('[data-content="map-info-title"]');
   if (mapInfoTitle) mapInfoTitle.textContent = config.project.mapInfoTitle;
@@ -77,12 +76,8 @@ function updateProjectDescription(config) {
   }
   
   // Aggiorna i paragrafi della descrizione (codice esistente)
-  const descParts = config.project.projectDescription.split('<br><br>');
-  const desc1 = document.querySelector('[data-content="project-description-1"]');
-  const desc2 = document.querySelector('[data-content="project-description-2"]');
-  
-    if (desc1 && descParts.length > 0) desc1.textContent = descParts[0];
-    if (desc2 && descParts.length > 1) desc2.textContent = descParts[1];
+  const projectDescription = document.querySelector('[data-content="project-description"]');
+  if (projectDescription) projectDescription.innerHTML = config.project.projectDescription; 
   
   console.log("Contenuti aggiornati con successo");
 }
@@ -356,6 +351,103 @@ function ensureContainerHeight() {
     }, 100);
 }
 
+// ========================================
+// CODICE FINALE DA AGGIUNGERE A index.js
+// Una sola freccia FIXED che legge la sezione corrente e va a +1
+// ========================================
+
+// Gestione freccia scroll down
+const scrollArrow = document.getElementById('scroll-down-arrow');
+
+function updateScrollArrow() {
+    const sections = document.querySelectorAll('.section-fullscreen[data-section-id]');
+    
+    if (!scrollArrow || sections.length === 0) return;
+    
+    // Trova la sezione corrente visibile usando getBoundingClientRect
+    const windowHeight = window.innerHeight;
+    
+    let currentSectionId = null;
+    let maxVisibleArea = 0;
+    
+    sections.forEach((section) => {
+        const rect = section.getBoundingClientRect();
+        const sectionId = section.getAttribute('data-section-id');
+        
+        // Calcola quanta area della sezione è visibile nel viewport
+        const visibleTop = Math.max(0, rect.top);
+        const visibleBottom = Math.min(windowHeight, rect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        
+        // La sezione con più area visibile è quella corrente
+        if (visibleHeight > maxVisibleArea) {
+            maxVisibleArea = visibleHeight;
+            currentSectionId = sectionId;
+        }
+    });
+    
+    console.log('Current Section ID:', currentSectionId);
+    
+    // Se siamo nella sezione 3 (ultima), nascondi la freccia
+    if (currentSectionId === '3') {
+        scrollArrow.classList.remove('active');
+        return;
+    }
+    
+    // Altrimenti mostra la freccia e imposta target = currentSectionId + 1
+    if (currentSectionId !== null) {
+        scrollArrow.classList.add('active');
+        
+        // ⭐ LOGICA: PRENDE SEZIONE CORRENTE E AGGIUNGE 1
+        const targetSection = parseInt(currentSectionId) + 1;
+        scrollArrow.setAttribute('data-target-section', targetSection);
+        console.log('Target Section:', targetSection);
+    }
+}
+
+// Click sulla freccia
+if (scrollArrow) {
+    scrollArrow.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const targetSectionId = this.getAttribute('data-target-section');
+        
+        if (targetSectionId) {
+            const targetSection = document.querySelector(`[data-section-id="${targetSectionId}"]`);
+            
+            if (targetSection) {
+                // Usa la funzione goToSection esistente se disponibile
+                if (typeof goToSection === 'function') {
+                    goToSection(parseInt(targetSectionId));
+                } else {
+                    // Altrimenti scroll diretto
+                    targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
+    });
+}
+
+// Previeni scroll orizzontale
+window.addEventListener('scroll', function() {
+    if (window.scrollX !== 0) {
+        window.scrollTo(0, window.scrollY);
+    }
+});
+
+// Aggiorna al caricamento
+setTimeout(updateScrollArrow, 200);
+
+// Aggiorna durante scroll e resize
+window.addEventListener('scroll', updateScrollArrow);
+window.addEventListener('resize', updateScrollArrow);
+
+// Se usi sectionsContainer con scroll interno
+const sectionsContainer = document.querySelector('.sections-container');
+if (sectionsContainer) {
+    sectionsContainer.addEventListener('scroll', updateScrollArrow);
+}
+
 // Funzione principale asincrona per la mappa
 async function initializeMap(config, data) {
   try {
@@ -474,7 +566,7 @@ function generateIndexPreview(config) {
   ctaButton.className = 'inline-flex items-center bg-primary-600 hover:bg-gradient-to-r hover:from-primary-600 hover:to-secondary-600 text-white px-8 py-4 lg:px-12 lg:py-6 rounded-xl font-semibold text-lg lg:text-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 group';
   
   ctaButton.innerHTML = `
-    <span class="mr-3">Esplora tutti gli indici</span>
+    <span class="mr-3">Vai agli indici</span>
     <svg class="w-5 h-5 lg:w-6 lg:h-6 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5-5 5M6 12h12"></path>
     </svg>

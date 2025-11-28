@@ -50,7 +50,7 @@ export class TaxonomyView {
     header.className = 'mb-6';
     header.innerHTML = `
       <span class="font-medium border-b-2 border-primary-600 pb-1">${this.indexInfo.category || 'Tassonomia'}</span>
-      <h1 class="text-3xl font-bold text-slate-800 my-2">Vista: <span class="text-secondary-700">${this.indexInfo.name || this.indexKey}</span></h1>
+      <h1 class="text-3xl font-bold text-slate-800 my-2">Indice: <span class="text-secondary-700">${this.indexInfo.name || this.indexKey}</span></h1>
     `;
     return header;
   }
@@ -180,12 +180,12 @@ export class TaxonomyView {
     if (typeof window.navigateToMap === 'function') {
       window.navigateToMap(filterAction);
     } else {
-      window.location = mapUrl;
+      window.open(mapUrl, '_blank');
     }
   }
 
   // ===============================
-  // VISUALIZZAZIONE: Lista Annidata CON DETTAGLI LOCATION
+  // VISUALIZZAZIONE: Lista Annidata SENZA DETTAGLI LOCATION
   // ===============================
 
   renderNestedList(container) {
@@ -205,137 +205,112 @@ export class TaxonomyView {
         const hasDirectItems = items.length > 0;
         const itemId = `item-${level}-${key.replace(/\s+/g, '-')}`;
         
-        // CASO 1: Nodo foglia (solo items, no figli) - usa accordion completo
+        // LEAF NODE: only items, no children
         if (hasDirectItems && !hasChildren) {
-          const accordionItem = ViewComponents.createAccordionItem({
-            id: itemId,
+          const itemContainer = document.createElement('div');
+          itemContainer.className = 'border-b border-slate-200 last:border-b-0';
+
+          const { header } = ViewComponents.createAccordionHeader({
             title: key,
             subtitle: null,
             count: count,
             indexKey: this.indexKey,
             filterValue: currentPath,
-            content: ViewComponents.createLocationDetailsTable(
-              items,
-              this.indexKey,
-              currentPath,
-              { onMapClick: (val) => this.goToMapWithFilter(val) }
-            ),
-            onToggle: (id, isOpen) => {
-              if (isOpen) {
-                this.expandedItems.add(id);
-              } else {
-                this.expandedItems.delete(id);
-              }
-            },
             onMapClick: (val) => this.goToMapWithFilter(val),
-            isExpanded: this.expandedItems.has(itemId),
+            isExpanded: false,
+            hasExpandableContent: false, // Nessun contenuto espandibile
+            items: items, // Passa gli items per estrarre le descrizioni
             customClasses: this.getListItemClasses(level),
-            titleClasses: this.getTitleSizeForLevel(level)
+            titleClasses: this.getTitleSizeForLevel(level),
+            onToggle: () => {} // Nessuna azione al toggle
           });
-          
-          listContainer.appendChild(accordionItem);
+
+          itemContainer.appendChild(header);
+          listContainer.appendChild(itemContainer);
           return;
         }
 
-        // CASO 2: Nodo intermedio (con figli) - struttura custom
+        // INTERMEDIATE/PARENT NODE: has children (and maybe items too)
         const itemContainer = document.createElement("div");
         itemContainer.className = "overflow-hidden";
 
-        // Header del nodo
+        // Header
         const header = document.createElement("div");
-        header.className = `flex items-center justify-between pl-4 py-3 ${this.getListItemClasses(level)} ${hasChildren ? 'cursor-pointer hover:bg-opacity-80' : ''}`;
-        
+        header.className = `flex items-center justify-between pl-4 py-3 ${this.getListItemClasses(level)} cursor-pointer hover:bg-opacity-80`;
+
         const left = document.createElement("div");
-        left.className = "flex items-center space-x-3";
-        
-        const title = document.createElement("span");
-        title.className = `font-medium ${this.getTitleSizeForLevel(level)}`;
-        title.textContent = key;
-        left.appendChild(title);
-        
+        left.className = "flex items-center space-x-4 flex-1 min-w-0";
+
+        const info = document.createElement("div");
+        info.className = "min-w-0 flex-1";
+        info.innerHTML = `<div class="${this.getTitleSizeForLevel(level)} font-semibold text-primary-900 truncate">${key}</div>`;
+        left.appendChild(info);
+
         const right = document.createElement("div");
-        right.className = "flex items-center space-x-2";
-        
-        // Badge con ViewComponents
-        right.appendChild(ViewComponents.createCountBadge(count, 'text-xs px-2 py-0.5'));
+        right.className = "flex items-center space-x-3 flex-shrink-0";
 
-        // Chevron se ha figli
-        if (hasChildren) {
-          const chevron = ViewComponents.createChevron(true);
-          chevron.classList.add('w-4', 'h-4');
-          right.appendChild(chevron);
-          
-          header.onclick = () => this.toggleNestedAccordion(itemId, chevron);
-        }
+        const badge = ViewComponents.createCountBadge(count);
+        const chevron = ViewComponents.createChevron(this.expandedItems.has(itemId));
+        const mapButton = ViewComponents.createMapButton(this.indexKey, currentPath, (val) => this.goToMapWithFilter(val));
 
-        // Bottone mappa con ViewComponents
-        if (count > 0) {
-          const mapButton = ViewComponents.createMapButton(
-            this.indexKey,
-            currentPath,
-            (val) => this.goToMapWithFilter(val)
-          );
-          mapButton.className = "p-1 text-secondary-600 hover:text-secondary-700";
-          mapButton.onclick = (e) => e.stopPropagation();
-          right.appendChild(mapButton);
-        }
-        
+        right.appendChild(badge);
+        right.appendChild(chevron);
+        right.appendChild(mapButton);
+
         header.appendChild(left);
         header.appendChild(right);
-        itemContainer.appendChild(header);
 
-        // Contenuto: figli gerarchici + items diretti opzionali
-        const content = document.createElement("div");
-        content.id = itemId;
-        content.className = "ml-6"; // Sempre visibile per default
-
-        // Aggiungi items diretti se presenti (prima dei figli)
-        if (hasDirectItems) {
-          const directItemsSection = document.createElement("div");
-          directItemsSection.className = "mb-2";
-          
-          const detailsToggleId = `details-${itemId}`;
-          const detailsHeader = document.createElement("div");
-          detailsHeader.className = "flex items-center justify-between p-2 bg-slate-100 rounded cursor-pointer hover:bg-slate-200";
-          
-          const detailsLeft = document.createElement("div");
-          detailsLeft.className = "text-sm text-slate-700 font-medium";
-          detailsLeft.textContent = `📍 ${items.length} location${items.length > 1 ? 'i' : 'e'} dirette`;
-          
-          const detailsChevron = ViewComponents.createChevron(false);
-          detailsChevron.classList.add('w-4', 'h-4');
-          
-          detailsHeader.appendChild(detailsLeft);
-          detailsHeader.appendChild(detailsChevron);
-          
-          const detailsContent = document.createElement("div");
-          detailsContent.id = detailsToggleId;
-          detailsContent.className = "hidden";
-          detailsContent.appendChild(
-            ViewComponents.createLocationDetailsTable(
-              items,
-              this.indexKey,
-              currentPath,
-              { onMapClick: (val) => this.goToMapWithFilter(val) }
-            )
-          );
-          
-          detailsHeader.onclick = () => this.toggleNestedAccordion(detailsToggleId, detailsChevron);
-          
-          directItemsSection.appendChild(detailsHeader);
-          directItemsSection.appendChild(detailsContent);
-          content.appendChild(directItemsSection);
-        }
-
-        // Aggiungi figli gerarchici
-        if (hasChildren) {
-          const childContainer = buildList(value, level + 1, currentPath);
-          if (childContainer.children.length > 0) {
-            content.appendChild(childContainer);
+        header.onclick = (e) => {
+          if (e.target === mapButton || e.target.closest('button') === mapButton) return;
+          const content = childrenWrapper;
+          content.classList.toggle('hidden');
+          chevron.classList.toggle('rotate-180');
+          if (content.classList.contains('hidden')) {
+            this.expandedItems.delete(itemId);
+          } else {
+            this.expandedItems.add(itemId);
           }
+        };
+
+        // Children wrapper
+        const childrenWrapper = document.createElement("div");
+        childrenWrapper.className = this.expandedItems.has(itemId) ? '' : 'hidden';
+
+        // Show direct items if any (SOLO HEADER)
+        if (hasDirectItems) {
+          const directItemsContainer = document.createElement("div");
+          directItemsContainer.className = "ml-4 border-b border-slate-200";
+          
+          const { header: directHeader } = ViewComponents.createAccordionHeader({
+            title: `${key} (direttamente)`,
+            subtitle: null,
+            count: items.length,
+            indexKey: this.indexKey,
+            filterValue: currentPath,
+            onMapClick: (val) => this.goToMapWithFilter(val),
+            isExpanded: false,
+            hasExpandableContent: false, // Nessun contenuto espandibile
+            items: items, // Passa gli items per estrarre le descrizioni
+            customClasses: this.getListItemClasses(level + 1),
+            titleClasses: this.getTitleSizeForLevel(level + 1),
+            onToggle: () => {} // Nessuna azione al toggle
+          });
+          
+          directItemsContainer.appendChild(directHeader);
+          childrenWrapper.appendChild(directItemsContainer);
         }
 
-        itemContainer.appendChild(content);
+        // Recursive children
+        const childrenList = buildList(value, level + 1, currentPath);
+        if (childrenList.children.length > 0) {
+          const childrenContainer = document.createElement("div");
+          childrenContainer.className = "ml-4";
+          childrenContainer.appendChild(childrenList);
+          childrenWrapper.appendChild(childrenContainer);
+        }
+
+        itemContainer.appendChild(header);
+        itemContainer.appendChild(childrenWrapper);
         listContainer.appendChild(itemContainer);
       });
 
@@ -343,47 +318,35 @@ export class TaxonomyView {
     };
 
     const wrapper = document.createElement("div");
-    wrapper.className = "bg-white rounded-lg shadow-sm";
-
-    const listContent = buildList(this.hierarchyData);
+    wrapper.className = "bg-white rounded-lg shadow-sm divide-y divide-slate-200";
+    const list = buildList(this.hierarchyData);
     
-    if (listContent.children.length === 0) {
-      container.appendChild(ViewComponents.createEmptyState('Nessun risultato trovato'));
+    if (list.children.length === 0) {
+      wrapper.appendChild(ViewComponents.createEmptyState('Nessun risultato trovato'));
     } else {
-      wrapper.appendChild(listContent);
-      container.appendChild(wrapper);
+      wrapper.appendChild(list);
     }
+
+    container.appendChild(wrapper);
   }
 
-  toggleNestedAccordion(itemId, chevron) {
-    const content = document.getElementById(itemId);
-    if (!content) return;
-    
-    const isHidden = content.classList.contains('hidden');
-    content.classList.toggle('hidden');
-    
-    if (chevron) {
-      if (isHidden) {
-        chevron.classList.add('rotate-180');
+  countItems(obj) {
+    let val = 0;
+    Object.entries(obj).forEach(([k, v]) => {
+      if (k === "_items") {
+        val += v.length;
       } else {
-        chevron.classList.remove('rotate-180');
+        val += this.countItems(v);
       }
-    }
-  }
-
-  countItems(node) {
-    let val = Array.isArray(node._items) ? node._items.length : 0;
-    Object.entries(node).forEach(([k, v]) => {
-      if (k !== "_items") val += this.countItems(v);
     });
     return val;
   }
 
   getListItemClasses(level) {
     const levelClasses = {
-      0: 'bg-primary-50 border-l-4 border-primary-500',
-      1: 'bg-secondary-50 border-l-4 border-secondary-500',
-      2: 'bg-accent-50 border-l-4 border-accent-500',
+      0: 'bg-primary-200 border-l-4 border-primary-800',
+      1: 'bg-primary-100 border-l-4 border-primary-600',
+      2: 'bg-primary-50 border-l-4 border-primary-400',
     };
     return levelClasses[level] || 'bg-slate-50 border-l-4 border-slate-300';
   }
@@ -391,9 +354,9 @@ export class TaxonomyView {
   getTitleSizeForLevel(level) {
     switch(level) {
       case 0: return 'text-lg text-primary-900';
-      case 1: return 'text-base text-secondary-900';
-      case 2: return 'text-sm text-accent-900';
-      default: return 'text-sm text-slate-700';
+      case 1: return 'text-base text-primary-800';
+      case 2: return 'text-sm text-primary-700';
+      default: return 'text-sm text-primary-600';
     }
   }
 

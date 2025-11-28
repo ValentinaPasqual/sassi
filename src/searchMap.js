@@ -38,6 +38,7 @@ class LEDASearch {
     // Flags
     this.isInitialLoad = true;
     this.isFullyLoaded = false;
+    this.shouldFocusOnFilter = false;
     
     this.initialize();
   }
@@ -62,7 +63,7 @@ class LEDASearch {
       
       // Initialize search engine
       this.searchEngine = itemsjs(jsonData, this.config);
-     
+    
       // Initialize core managers
       this.initializeManagers();
       
@@ -76,20 +77,20 @@ class LEDASearch {
       await this.performSearch();
       
       // Apply URL filters after initialization
-      this.applyUrlFilters();
+      await this.applyUrlFilters();
       
       // Mark as fully loaded
       this.isInitialLoad = false;
       this.isFullyLoaded = true;
-      
-      // Hide loader
-      this.uiManager.hideFullScreenLoader();
       
     } catch (error) {
       console.error('Initialization error:', error);
       this.uiManager.showNotification('Error loading application', 'error');
       this.uiManager.hideFullScreenLoader();
     }
+    // Hide loader DOPO che tutto è pronto, inclusi i filtri
+    this.uiManager.hideFullScreenLoader();
+      
   }
 
   initializeManagers() {
@@ -97,7 +98,7 @@ class LEDASearch {
     this.stateManager = new StateManager(this.config);
     
     // Initialize Search Coordinator
-    this.searchCoordinator = new SearchCoordinator(null, this.config); // searchHandler will be set later
+    this.searchCoordinator = new SearchCoordinator(null, this.config);
     
     // Initialize Filter Manager
     this.filterManager = new FilterManager(this.stateManager, this.config);
@@ -158,9 +159,48 @@ class LEDASearch {
         });
       },
       onAggregationsUpdate: (aggregations) => this.renderFacets(aggregations),
-      onNavBarUpdate: (count, options) => this.updateNavBar(count, options),
+      onNavBarUpdate: (results) => this.updateNavBar(results),
+      onBoundsCalculated: (bounds) => this.handleMapBounds(bounds),
       onError: (message, type) => this.uiManager.showNotification(message, type)
     };
+  }
+
+  handleMapBounds(bounds) {
+    console.log('🗺️ handleMapBounds called');
+    console.log('  - isInitialLoad:', this.isInitialLoad);
+    console.log('  - shouldFocusOnFilter:', this.shouldFocusOnFilter);
+    console.log('  - has bounds:', !!bounds);
+    console.log('  - has map:', !!this.components.map);
+    
+    // Focus sulla mappa solo se:
+    // 1. Non è il caricamento iniziale
+    // 2. Il flag shouldFocusOnFilter è attivo
+    // 3. Abbiamo bounds validi e la mappa
+    if (!this.isInitialLoad && this.shouldFocusOnFilter && bounds && this.components.map) {
+      console.log('✅ Applying map focus to bounds:', bounds);
+      
+      try {
+        // Leaflet fitBounds con array [[lat, lng], [lat, lng]]
+        this.components.map.fitBounds([
+          bounds.southwest,
+          bounds.northeast
+        ], {
+          padding: [50, 50],
+          maxZoom: 15,
+          animate: true,
+          duration: 1
+        });
+        
+        console.log('✅ Map focus applied successfully');
+      } catch (error) {
+        console.error('❌ Error focusing map:', error);
+      }
+      
+      // Reset del flag dopo il focus
+      this.shouldFocusOnFilter = false;
+    } else {
+      console.log('⏭️ Skipping map focus');
+    }
   }
 
   async performSearch() {
@@ -168,44 +208,58 @@ class LEDASearch {
     return await this.searchCoordinator.performSearch(state, this.getSearchCallbacks());
   }
 
-async handleStateChange(action) {
-  await this.stateManager.handleStateChange(action, {
-    onStateChange: async (state) => {
-      window.ledaSearch.state = state;
-      // Disabilita il debounce per i filtri - ricerca immediata
-      const results = await this.searchCoordinator.performSearch(
-        state, 
-        this.getSearchCallbacks()
-      );
-      console.log('Filter search completed:', results.items?.length || 0, 'items found');
+  async handleStateChange(action) {
+    console.log('🔄 handleStateChange called with action:', action);
+    
+    // IMPORTANTE: Attiva il flag PRIMA di gestire il cambio di stato
+    // Questo cattura tutti i tipi di filtri: facet, range, taxonomy
+    if (action.type === 'FACET_CHANGE' || action.type === 'RANGE_CHANGE') {
+      this.shouldFocusOnFilter = true;
+      console.log('🎯 Filter change detected - shouldFocusOnFilter = TRUE');
     }
-  });
-}
+    
+    await this.stateManager.handleStateChange(action, {
+      onStateChange: async (state) => {
+        window.ledaSearch.state = state;
+        const results = await this.searchCoordinator.performSearch(
+          state, 
+          this.getSearchCallbacks()
+        );
+        console.log('✅ Filter search completed:', results?.items?.length || 0, 'items');
+      }
+    });
+  }
 
   renderFacets(aggregations) {
     this.components.facetRenderer.renderFacets(
       aggregations,
       this.stateManager.getState(),
-      (action) => this.handleStateChange(action)
+      // Intercetta l'azione PRIMA di passarla a handleStateChange
+      (action) => {
+        console.log('📋 Facet action intercepted:', action.type);
+        this.handleStateChange(action);
+      }
     );
   }
 
-  updateNavBar(resultsCount = 0, options = {}) {
+  updateNavBar(results = []) {
     this.components.navBar.updateFromSearchState(
       this.stateManager.getState(),
-      resultsCount,
-      options
+      results
     );
   }
 
-focusOnMap(lat, lng, locationName) {
-  if (this.components.mapInstance && this.components.mapInstance.focusOnLocation) {
-    this.components.mapInstance.focusOnLocation(lat, lng, locationName);
+  focusOnMap(lat, lng, locationName) {
+    if (this.components.mapInstance && this.components.mapInstance.focusOnLocation) {
+      this.components.mapInstance.focusOnLocation(lat, lng, locationName);
+    }
   }
-}
 
-  applyUrlFilters() {
-    this.filterManager.applyUrlFilters({
+  async applyUrlFilters() {
+    this.shouldFocusOnFilter = true;
+    console.log('🔗 Applying URL filters - shouldFocusOnFilter = TRUE');
+    
+    await this.filterManager.applyUrlFilters({
       onApplyFilters: async () => await this.performSearch(),
       onShowNotification: (filterKey, filterValue) => 
         this.uiManager.showFilterNotification(filterKey, filterValue),
@@ -214,16 +268,22 @@ focusOnMap(lat, lng, locationName) {
   }
 
   clearAllFilters() {
+    this.shouldFocusOnFilter = false;
+    console.log('🧹 Clearing all filters - shouldFocusOnFilter = FALSE');
     this.filterManager.clearAllFilters();
     this.performSearch();
   }
 
   removeFilter(facetKey, value) {
+    this.shouldFocusOnFilter = true;
+    console.log('🗑️ Removing filter - shouldFocusOnFilter = TRUE');
     this.filterManager.removeFilter(facetKey, value);
     this.performSearch();
   }
 
   clearSearchQuery() {
+    // Non fare focus quando si cancella la query di ricerca
+    this.shouldFocusOnFilter = false;
     this.filterManager.clearSearchQuery();
     this.performSearch();
   }

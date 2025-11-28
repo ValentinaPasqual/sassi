@@ -1,45 +1,67 @@
 {
   "project": {
-    "projectShortTitle": "APAP_demo",
-    "projectThumbnailURL": "imgs/project_logo.png",
-    "projectTitle": "Atlante prêt-à-porter, a demo",
-    "projectSubtitle": "Una demo esemplificative delle configurazioni possibili di Atlante prêt-à-porter",
-    "projectDescription": "Atlante prêt-à-porter è un'interfaccia web customizzabile per progetti che integrano i propri dati su mappa geolocazzata insieme a un catalogo...",
-    "mapInfoTitle": "Come Usare Questa Mappa",
-    "mapInfoDescription": "Clicca sui marker per vedere i dettagli."
+    "projectShortTitle": "SASSI",
+    "projectThumbnailURL": "project_logo.png",
+    "projectTitle": "Storia dell'Alpinismo",
+    "projectSubtitle": "Scalate Storiche in Italia",
+    "projectDescription": "Il Progetto SASSI mappa la storia delle prime ascensioni sull'arco alpino, creando un atlante interattivo dell'alpinismo pionieristico dal XVIII al XX secolo. <br><br> Le mappe mostrano l'evoluzione cronologica dell'esplorazione alpina, contestualizzando ogni ascensione nel proprio periodo storico. Il progetto serve come strumento di ricerca per storici e appassionati, rivelando pattern geografici dell'attività alpinistica e le correlazioni tra sviluppo turistico ed esplorazione.",
+    "mapInfoTitle": "Scopri la mappa",
+    "mapInfoDescription": ""
   },
   "datasetConfig": {
     "multivalue_rows": {
-      "custom_locations_category_1": ","
+      "Expedition_members": ",",
+      "Fonti_primarie": "|"
     }
   },
   "result_cards": {
     "card_title": "Item_Name",
-    "card_subtitle": "catalogue_custom_category_1",
-    "card_subtitle_2": "catalogue_custom_category_3",
-    "card_description": "",
+    "card_subtitle": "Year",
+    "card_subtitle_2": "Expedition_members",
+    "card_description": "Note",
     "popup_description": ""
   },
-  "map": {
-    "initialView": [
-      41.9028,
-      12.4964
-    ],
-    "initialZoom": 12,
-    "tileLayers": {
-      "Default": {
-        "tileLayer": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": "© OpenStreetMap contributors"
+  "modal_information": {
+    "fields": {
+      "catalogue": {
+        "Type": "Certezza della spedizione",
+        "Note": "Note sulla spedizione",
+        "Date": "Data della spedizione",
+        "Alpinist": "Alpinisti che hanno partecipato alla spedizione",
+        "Guide": "Guide che hanno partecipato alla spedizione",
+        "Fonti_relazionate_membri": "Fonti relazionate ai membri della spedizione",
+        "source": "Fonti"
       },
-      "Terrain": {
-        "tileLayer": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-        "attribution": "© OpenTopoMap (CC-BY-SA)"
-      },
-      "CartoDB_Positron": {
-        "tileLayer": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "attribution": "© OpenStreetMap © CartoDB"
+      "geodata": {
+        "alt_Name": "Nome alternativo",
+        "altitude": "Altitudine",
+        "SOIUSA": "Divisione SOUISA (Grande parte-Sottogruppo)",
+        "SOIUSA_Codice": "SOIUSA (Codice)",
+        "latitude": "Latitudine",
+        "longitude": "Longitudine"
       }
     }
+  },
+  "map": {
+   "initialView": [
+      45.8,
+      10.0
+    ],
+    "initialZoom": 7,
+    "tileLayers": {
+    "Default": {
+      "tileLayer": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "attribution": "© OpenStreetMap contributors"
+    },
+    "Terrain": {
+      "tileLayer": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      "attribution": "© OpenTopoMap (CC-BY-SA)"
+    },
+    "CartoDB_Positron": {
+      "tileLayer": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      "attribution": "© OpenStreetMap © CartoDB"
+    }
+  }
   },
   "map_popups": {
     "show_polygons": "True",
@@ -47,88 +69,97 @@
   },
   "searchConfig": {
     "debounceTime": 300,
-    "defaultSort": "item_name_asc",
+    "defaultSort": "year_desc",
     "sortOptions": [
+      {
+        "value": "item_name_desc",
+        "label": "Item_Name (Desc)"
+      },
       {
         "value": "item_name_asc",
         "label": "Item_Name (Asc)"
       },
       {
-        "value": "item_name_desc",
-        "label": "Item_Name (Desc)"
+        "value": "year_desc",
+        "label": "Year (Desc)"
+      },
+      {
+        "value": "year_asc",
+        "label": "Year (Asc)"
       }
     ]
   },
   "resultsDisplay": {
     "tagsToShow": [
-      "Item_Name"
+      "Item_Name",
+      "Year"
     ]
   },
   "sortings": {
+    "item_name_desc": {
+      "field": "Item_Name",
+      "order": "desc"
+    },
     "item_name_asc": {
       "field": "Item_Name",
       "order": "asc"
     },
-    "item_name_desc": {
-      "field": "Item_Name",
+    "year_desc": {
+      "field": "Year",
       "order": "desc"
+    },
+    "year_asc": {
+      "field": "Year",
+      "order": "asc"
     }
   },
   "aggregations": {
-    "Location": {
-      "title": "I Luoghi",
-      "category": "Gli spazi narrati",
+    "Expedition_members": {
+      "title": "I membri",
+      "category": "Le spedizioni",
       "size": 500,
       "conjunction": false,
       "type": "simple"
     },
-    "custom_locations_category_1": {
-      "title": "Categoria 1",
-      "category": "Gli spazi narrati",
-      "size": 500,
-      "conjunction": false,
-      "type": "simple"
-    },
-    "catalogue_custom_category_1": {
-      "title": "Categoria 1",
-      "category": "I riferimenti",
-      "size": 500,
-      "conjunction": false,
-      "type": "simple"
-    },
-    "catalogue_custom_category_2": {
-      "title": "Categoria 2",
-      "category": "I riferimenti",
-      "size": 500,
-      "conjunction": false,
-      "type": "taxonomy"
-    },
-    "catalogue_custom_category_3": {
-      "title": "Categoria 3",
-      "category": "I riferimenti",
+    "Year": {
+      "title": "Le date",
+      "category": "Le spedizioni",
       "size": 500,
       "conjunction": false,
       "type": "range"
     },
-    "custom_locations_category_2": {
-      "title": "Categoria 2",
-      "category": "Gli spazi narrati",
+    "Location": {
+      "title": "Le cime",
+      "category": "I luoghi delle spedizioni",
+      "size": 500,
+      "conjunction": false,
+      "type": "simple"
+    },
+    "altitude_span": {
+      "title": "Le altitudini",
+      "category": "I luoghi delle spedizioni",
+      "size": 500,
+      "conjunction": false,
+      "type": "range"
+    },
+    "SOIUSA": {
+      "title": "Le divisioni SOIUSA",
+      "category": "I luoghi delle spedizioni",
       "size": 500,
       "conjunction": false,
       "type": "taxonomy"
+    },
+    "Type": {
+      "title": "Dispute e Ipotesi",
+      "category": "Le imprese incerte",
+      "size": 500,
+      "conjunction": false,
+      "type": "simple"
     }
   },
-  "modal_information": {
-    "Item_Name": "Nome del Riferimento",
-    "catalogue_custom_category_1": "Categoria 1",
-    "catalogue_custom_category_2": "Categoria 2",
-    "catalogue_custom_category_3": "Categoria 3",
-    "custom_locations_category_1": "Categoria 1",
-    "custom_locations_category_2": "Categoria 2"
-  },
-  "searchableFields": [
+    "searchableFields": [
     "Item_Name",
-    "catalogue_custom_category_1",
-    "catalogue_custom_category_3"
+    "Year",
+    "Expedition_members"
   ]
 }

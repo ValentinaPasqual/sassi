@@ -54,17 +54,28 @@ export class SimpleView {
     this.refreshList();
   }
 
-  filterBySearch(searchTerm) {
-    this.currentSearchTerm = searchTerm.toLowerCase();
+filterBySearch(searchTerm) {
+  this.currentSearchTerm = searchTerm.toLowerCase().trim();
+  
+  if (!this.currentSearchTerm) {
+    // Se vuoto, ripristina tutto
+    this.filteredData = { ...this.aggregatedData };
+  } else {
+    // Altrimenti cerca
     this.applySearch();
-    this.refreshList();
   }
+  
+  this.refreshList();
+}
 
   applySearch() {
-    if (!this.currentSearchTerm) return;
+    if (!this.currentSearchTerm) {
+      return; // Non fa nulla se non c'è termine di ricerca
+    }
     
     const filtered = {};
-    Object.entries(this.filteredData).forEach(([key, items]) => {
+    // filtra da this.aggregatedData
+    Object.entries(this.aggregatedData).forEach(([key, items]) => {
       if (key.toLowerCase().includes(this.currentSearchTerm) ||
           items.some(item => 
             (item.Name && item.Name.toLowerCase().includes(this.currentSearchTerm)) ||
@@ -90,7 +101,7 @@ export class SimpleView {
   }
 
   goToMapWithFilter(value) {
-    window.location.href = createMapUrlWithFilter(this.indexKey, value);
+    window.open(createMapUrlWithFilter(this.indexKey, value), '_blank');
   }
 
   // =====================================================
@@ -102,7 +113,7 @@ export class SimpleView {
     header.className = 'mb-6';
     header.innerHTML = `
       <span class="font-medium border-b-2 border-primary-600 pb-1">${this.indexInfo.category || 'Indice'}</span>
-      <h1 class="text-3xl font-bold text-slate-800 my-2">Vista: <span class="text-secondary-700">${this.indexInfo.name || this.indexKey}</span></h1>
+      <h1 class="text-3xl font-bold text-slate-800 my-2">Indice: <span class="text-secondary-700">${this.indexInfo.name || this.indexKey}</span></h1>
     `;
     return header;
   }
@@ -211,23 +222,24 @@ export class SimpleView {
       : entries.sort(([a, itemsA], [b, itemsB]) => itemsB.length - itemsA.length);
 
     sorted.forEach(([key, items], index) => {
-      const accordionItem = ViewComponents.createAccordionItem({
-        id: `simple-content-${index}`,
+      // Crea solo l'header dell'accordion senza contenuto interno
+      const container = document.createElement('div');
+      container.className = 'border-b border-slate-200 last:border-b-0';
+
+      const { header } = ViewComponents.createAccordionHeader({
         title: key,
-        subtitle: `${items.length} luog${items.length !== 1 ? 'hi' : 'o'}`,
         count: items.length,
         indexKey: this.indexKey,
         filterValue: key,
-        content: ViewComponents.createLocationDetailsTable(
-          items, 
-          this.indexKey, 
-          key,
-          { onMapClick: (val) => this.goToMapWithFilter(val) }
-        ),
-        isExpanded: false
+        onMapClick: (val) => this.goToMapWithFilter(val),
+        isExpanded: false,
+        hasExpandableContent: false, // Nessun contenuto espandibile
+        items: items, // Passa gli items per estrarre le descrizioni
+        onToggle: () => {} // Nessuna azione al toggle
       });
-      
-      wrapper.appendChild(accordionItem);
+
+      container.appendChild(header);
+      wrapper.appendChild(container);
     });
 
     return wrapper;

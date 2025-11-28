@@ -115,7 +115,7 @@ export class RangeView {
     header.className = 'mb-6';
     header.innerHTML = `
       <span class="font-medium border-b-2 border-primary-600 pb-1">${this.indexInfo.category || 'Range Numerici'}</span>
-      <h1 class="text-3xl font-bold text-slate-800 my-2">Vista: <span class="text-secondary-700">${this.indexInfo.name || this.indexKey}</span></h1>
+      <h1 class="text-3xl font-bold text-slate-800 my-2">Indice: <span class="text-secondary-700">${this.indexInfo.name || this.indexKey}</span></h1>
     `;
     return header;
   }
@@ -190,10 +190,10 @@ export class RangeView {
     const totalItems = Object.values(this.rangeData.buckets || {}).reduce((sum, bucket) => sum + bucket.items.length, 0);
     
     info.innerHTML = `
-      <h4 class="font-small text-slate-700 mb-3">Statistiche Range</h4>
+      <h4 class="font-small text-slate-700 mb-3">Statistiche degli intervalli</h4>
       <div class="text-xs text-slate-600 space-y-2">
         <div class="flex justify-between"><span>Elementi:</span><strong>${totalItems}</strong></div>
-        <div class="flex justify-between"><span>Range:</span><strong>${Object.keys(this.rangeData.buckets || {}).length}</strong></div>
+        <div class="flex justify-between"><span>Intervalli:</span><strong>${Object.keys(this.rangeData.buckets || {}).length}</strong></div>
         <div class="flex justify-between"><span>Valori unici:</span><strong>${this.rangeData.allValues?.length || 0}</strong></div>
       </div>
     `;
@@ -291,12 +291,13 @@ export class RangeView {
     if (typeof window.navigateToMap === 'function') {
       window.navigateToMap(filterAction);
     } else {
-      window.location = mapUrl;
+      // Open in a new window/tab
+      window.open(mapUrl, '_blank');
     }
   }
 
   // ===============================
-  // VISUALIZZAZIONE: Lista Range - CON ViewComponents
+  // VISUALIZZAZIONE: Lista Range - con ViewComponents
   // ===============================
 
   renderRangeList(container) {
@@ -374,8 +375,8 @@ export class RangeView {
     headerRow.className = "flex items-center font-medium text-sm text-slate-700 pb-2 border-b border-slate-200";
     headerRow.innerHTML = `
       <div class="w-24 flex-shrink-0">Valore</div>
-      <div class="flex-1 min-w-0">Location</div>
-      <div class="w-12 flex-shrink-0 text-center">Qty</div>
+      <div class="flex-1 min-w-0">Luogo</div>
+      <div class="w-12 flex-shrink-0 text-center">Qtà</div>
       <div class="w-16 flex-shrink-0 text-center">Azioni</div>
     `;
     table.appendChild(headerRow);
@@ -533,7 +534,7 @@ export class RangeView {
     labels.className = "mt-4 text-center text-sm text-slate-600";
     labels.innerHTML = `
       <div><strong>Asse X:</strong> Valori numerici del campo "${this.indexKey}"</div>
-      <div><strong>Asse Y:</strong> Numero di elementi per range</div>
+      <div><strong>Asse Y:</strong> Numero di elementi per intervallo</div>
     `;
     wrapper.appendChild(labels);
 

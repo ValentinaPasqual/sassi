@@ -2,36 +2,42 @@
 
 export class TaxonomyRenderer {
   constructor() {
-    this.originalFacetData = null;
+    // Cambia da un singolo oggetto a una Map indicizzata per facetKey
+    this.originalFacetData = new Map();
   }
 
-renderTaxonomy(container, facetData, facetKey, state) {
-  const currentFilters = state.filters || {};
-  const checkedPaths = currentFilters[facetKey] || [];
+  renderTaxonomy(container, facetData, facetKey, state) {
+    const currentFilters = state.filters || {};
+    const checkedPaths = currentFilters[facetKey] || [];
 
-  // Se non abbiamo ancora memorizzato i dati originali → salvali
-  if (!this.originalFacetData) {
-    this.originalFacetData = JSON.parse(JSON.stringify(facetData));
+    // Salva i dati originali PER QUESTO SPECIFICO facetKey
+    if (!this.originalFacetData.has(facetKey)) {
+      this.originalFacetData.set(facetKey, JSON.parse(JSON.stringify(facetData)));
+    }
+
+    // Usa i dati originali specifici per questo facetKey
+    const effectiveFacetData = checkedPaths.length > 0 
+      ? this.originalFacetData.get(facetKey)
+      : facetData;
+
+    const hierarchy = this._buildHierarchy(effectiveFacetData);
+    this._calculateTotalCounts(hierarchy);
+
+    container.className = 'taxonomy-container max-w-full overflow-x-auto max-h-80 overflow-y-auto';
+    container.innerHTML = this._createTaxonomyHTML(hierarchy, [], 0, facetKey, checkedPaths);
+    
+    this._setCheckboxStates(container, hierarchy, checkedPaths);
+    this._addEventListeners(container, hierarchy, facetKey);
   }
 
-  // 🔑 Se c’è almeno un filtro attivo → usa SEMPRE i dati originali
-  const effectiveFacetData = checkedPaths.length > 0 
-    ? this.originalFacetData 
-    : facetData;
-
-  const hierarchy = this._buildHierarchy(effectiveFacetData);
-  this._calculateTotalCounts(hierarchy);
-
-  container.className = 'taxonomy-container max-w-full overflow-x-auto max-h-80 overflow-y-auto';
-  container.innerHTML = this._createTaxonomyHTML(hierarchy, [], 0, facetKey, checkedPaths);
-  
-  this._setCheckboxStates(container, hierarchy, checkedPaths);
-  this._addEventListeners(container, hierarchy, facetKey);
-}
-
-
-  resetOriginalData() {
-    this.originalFacetData = null;
+  resetOriginalData(facetKey = null) {
+    if (facetKey) {
+      // Reset di una tassonomia specifica
+      this.originalFacetData.delete(facetKey);
+    } else {
+      // Reset di tutte le tassonomie
+      this.originalFacetData.clear();
+    }
   }
 
   _buildHierarchy(facetData) {

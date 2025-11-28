@@ -45,7 +45,7 @@ export class ViewComponents {
       if (onClick) {
         onClick(filterValue);
       } else {
-        window.location.href = createMapUrlWithFilter(indexKey, filterValue);
+        window.open(createMapUrlWithFilter(indexKey, filterValue), '_blank');
       }
     };
     button.title = `Visualizza sulla mappa`;
@@ -59,52 +59,64 @@ export class ViewComponents {
     const {
       title,
       subtitle = null,
+      description = null,
       count,
       indexKey,
       filterValue,
       onToggle,
       onMapClick,
       isExpanded = false,
+      hasExpandableContent = false,
       customClasses = '',
-      titleClasses = 'font-semibold text-lg text-primary-900'
+      titleClasses = 'font-semibold text-lg text-primary-900',
+      items = []
     } = config;
 
     const header = document.createElement('div');
-    header.className = `flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 ${customClasses}`;
+    header.className = `flex items-center justify-between p-4 ${hasExpandableContent ? 'cursor-pointer hover:bg-slate-50' : ''} ${customClasses}`;
 
-    // Lato sinistro: titolo e sottotitolo
+    // Lato sinistro: titolo, sottotitolo e descrizione
     const left = document.createElement('div');
     left.className = 'flex items-center space-x-4 flex-1 min-w-0';
 
     const info = document.createElement('div');
     info.className = 'min-w-0 flex-1';
+    
     info.innerHTML = `
-      <div class="${titleClasses} truncate">${title}</div>
+      <div class="${titleClasses}">${title}</div>
       ${subtitle ? `<div class="text-sm text-slate-600">${subtitle}</div>` : ''}
     `;
 
     left.appendChild(info);
 
-    // Lato destro: badge, chevron, bottone mappa
+    // Lato destro: badge, chevron (opzionale), bottone mappa
     const right = document.createElement('div');
     right.className = 'flex items-center space-x-3 flex-shrink-0';
 
     const badge = this.createCountBadge(count);
-    const chevron = this.createChevron(isExpanded);
     const mapButton = this.createMapButton(indexKey, filterValue, onMapClick);
 
     right.appendChild(badge);
-    right.appendChild(chevron);
+    
+    // Aggiungi chevron SOLO se c'è contenuto espandibile
+    let chevron = null;
+    if (hasExpandableContent) {
+      chevron = this.createChevron(isExpanded);
+      right.appendChild(chevron);
+    }
+    
     right.appendChild(mapButton);
 
     header.appendChild(left);
     header.appendChild(right);
 
-    // Click handler per toggle
-    header.onclick = (e) => {
-      if (e.target === mapButton || e.target.closest('button') === mapButton) return;
-      if (onToggle) onToggle();
-    };
+    // Click handler per toggle (solo se c'è contenuto espandibile)
+    if (hasExpandableContent) {
+      header.onclick = (e) => {
+        if (e.target === mapButton || e.target.closest('button') === mapButton) return;
+        if (onToggle) onToggle();
+      };
+    }
 
     return { header, chevron };
   }
@@ -159,114 +171,6 @@ export class ViewComponents {
     container.appendChild(header);
     container.appendChild(contentWrapper);
 
-    return container;
-  }
-
-  /**
-   * Crea una tabella di dettaglio location
-   */
-  static createLocationDetailsTable(items, indexKey, filterValue, options = {}) {
-    const {
-      showValue = false,
-      valueExtractor = null,
-      onMapClick = null
-    } = options;
-
-    const container = document.createElement('div');
-    container.className = 'p-4';
-
-    // Raggruppa per location
-    const locationGroups = {};
-    items.forEach(item => {
-      const location = item.Location || 'Luogo non specificato';
-      if (!locationGroups[location]) {
-        locationGroups[location] = [];
-      }
-      locationGroups[location].push(item);
-    });
-
-    const sortedLocations = Object.keys(locationGroups).sort();
-
-    if (sortedLocations.length === 0) {
-      container.innerHTML = '<div class="text-sm text-slate-500 italic">Nessun elemento disponibile</div>';
-      return container;
-    }
-
-    // Crea tabella
-    const table = document.createElement('div');
-    table.className = 'space-y-2';
-
-    // Header
-    const headerRow = document.createElement('div');
-    headerRow.className = 'flex items-center font-medium text-sm text-slate-700 pb-2 border-b border-slate-200';
-    headerRow.innerHTML = `
-      ${showValue ? '<div class="w-24 flex-shrink-0">Valore</div>' : ''}
-      <div class="flex-1 min-w-0">Luogo</div>
-      <div class="w-12 flex-shrink-0 text-center">Qtà.</div>
-      <div class="w-16 flex-shrink-0 text-center">Azioni</div>
-    `;
-    table.appendChild(headerRow);
-
-    // Righe
-    sortedLocations.forEach(location => {
-      const locationItems = locationGroups[location];
-      
-      const row = document.createElement('div');
-      row.className = 'flex items-center text-sm py-2 hover:bg-white rounded px-2';
-
-      // Valore (opzionale)
-      if (showValue && valueExtractor) {
-        const valueCell = document.createElement('div');
-        valueCell.className = 'w-24 flex-shrink-0 font-medium text-primary-700';
-        valueCell.textContent = valueExtractor(locationItems[0]);
-        row.appendChild(valueCell);
-      }
-
-      // Location
-      const locationCell = document.createElement('div');
-      locationCell.className = 'flex-1 min-w-0 text-slate-600 truncate';
-      locationCell.textContent = location;
-      locationCell.title = location;
-
-      // Quantity
-      const qtyCell = document.createElement('div');
-      qtyCell.className = 'w-12 flex-shrink-0 text-center';
-      const qtyBadge = document.createElement('span');
-      qtyBadge.className = 'text-secondary-500 bg-secondary-100 px-2 py-0.5 rounded-full text-xs';
-      qtyBadge.textContent = locationItems.length.toString();
-      qtyCell.appendChild(qtyBadge);
-
-      // Azioni
-      const actionCell = document.createElement('div');
-      actionCell.className = 'w-16 flex-shrink-0 text-center';
-      
-      const viewButton = document.createElement('button');
-      viewButton.className = 'text-secondary-600 hover:text-secondary-700 p-1 rounded hover:bg-secondary-50';
-      viewButton.innerHTML = `
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-        </svg>
-      `;
-      viewButton.onclick = () => {
-        if (onMapClick) {
-          onMapClick(filterValue);
-        } else {
-          window.location.href = createMapUrlWithFilter(indexKey, filterValue);
-        }
-      };
-      viewButton.title = `Visualizza sulla mappa: ${location}`;
-      
-      actionCell.appendChild(viewButton);
-
-      row.appendChild(locationCell);
-      row.appendChild(qtyCell);
-      row.appendChild(actionCell);
-
-      table.appendChild(row);
-    });
-
-    container.appendChild(table);
     return container;
   }
 

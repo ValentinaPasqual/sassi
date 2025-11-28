@@ -199,8 +199,7 @@ const createPopupContent = (name, items, coords, isSpecial, config) => {
               }
           });
           
-          return `
-          <div class="max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border border-primary-100/50 backdrop-blur-sm">
+          return `<div class="max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border border-primary-100/50 backdrop-blur-sm">
               <!-- Header con gradiente animato -->
               <div class="bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-600 text-white p-3 relative overflow-hidden">
                   <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12"></div>
@@ -241,14 +240,36 @@ const createPopupContent = (name, items, coords, isSpecial, config) => {
                   <!-- Lista risultati con scrollbar personalizzata -->
                   <div class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-primary-300 scrollbar-track-primary-50 hover:scrollbar-thumb-primary-400">
                   ${Object.values(operaGroups).map((group, index) => `
-                    <div class="group bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-primary-100/50 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
+                    <div class="group bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-primary-100/50 hover:shadow-lg hover:border-primary-200 transition-all duration-300 cursor-pointer"
+                         onclick="(function(e) {
+                           // Previeni il click se si clicca su link o bottoni interni
+                           if (e.target.closest('a, button')) return;
+                           
+                           const card = e.currentTarget;
+                           const content = card.querySelector('.accordion-content');
+                           const chevron = card.querySelector('.chevron-icon');
+                           
+                           // Verifica se l'accordion è attualmente aperto
+                           const isOpen = content && content.scrollHeight > 0 && content.style.maxHeight && content.style.maxHeight !== '0px';
+                           
+                           // Toggle accordion se esiste
+                           if (content && chevron) {
+                             if (isOpen) {
+                               content.style.maxHeight = '0px';
+                             } else {
+                               content.style.maxHeight = content.scrollHeight + 'px';
+                             }
+                             chevron.classList.toggle('rotate-180');
+                           }
+                           
+                           // Chiama la funzione focusOnResult SOLO quando si apre l'accordion (o se non c'è accordion)
+                           if (!isOpen && window.focusOnResult) {
+                             window.focusOnResult('${group.item.pivot_ID}');
+                           }
+                         })(event)">
                       <div class="p-3">
-                        <!-- Accordion Header -->
-                        ${group.description ? `
-                        <button onclick="const content = this.nextElementSibling; const chevron = this.querySelector('.chevron-icon'); content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + 'px'; chevron.classList.toggle('rotate-180');" class="w-full flex items-start gap-2 text-left hover:bg-gray-50/50 rounded transition-colors mb-2">
-                        ` : `
+                        <!-- Card Header -->
                         <div class="flex items-start gap-2 mb-2">
-                        `}
                           <div class="p-1 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg group-hover:from-primary-200 group-hover:to-secondary-200 transition-colors duration-300">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-primary-600">
                               <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
@@ -270,7 +291,7 @@ const createPopupContent = (name, items, coords, isSpecial, config) => {
                             <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
                           </svg>
                           ` : ''}
-                        ${group.description ? `</button>` : `</div>`}
+                        </div>
 
                         <!-- Locations -->
                           ${Array.from(group.locations).length > 0 ? `
@@ -282,17 +303,14 @@ const createPopupContent = (name, items, coords, isSpecial, config) => {
                             </div>
                           ` : ''}
                         
-<!-- Accordion Content -->
-${group.description ? `
-<div style="max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
-  <div class="max-h-24 overflow-y-auto mb-2 p-2 bg-gray-50 rounded animate-fadeIn">
-    <p class="text-sm text-gray-700">${group.description}</p>
-  </div>
-</div>
-` : ''}
-                        
-                        <!-- Focus Button - Always outside accordion -->
-                        ${createFocusButton(group.item)}
+                        <!-- Accordion Content -->
+                        ${group.description ? `
+                        <div class="accordion-content" style="max-height: 0px; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+                          <div class="max-h-24 overflow-y-auto mb-2 p-2 bg-gray-50 rounded animate-fadeIn">
+                            <p class="text-sm text-gray-700">${group.description}</p>
+                          </div>
+                        </div>
+                        ` : ''}
                       </div>
                     </div>
                   `).join('')}
@@ -302,7 +320,7 @@ ${group.description ? `
           `;
       } else {
           // Regular popup format
-          return `
+return `
           <div class="max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border border-secondary-100/50 backdrop-blur-sm">
               <!-- Header con gradiente animato -->
               <div class="bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-600 text-white p-3 relative overflow-hidden">
@@ -344,14 +362,36 @@ ${group.description ? `
                   <!-- Lista risultati con scrollbar personalizzata -->
                   <div class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-primary-300 scrollbar-track-primary-50 hover:scrollbar-thumb-primary-400">
                     ${items.map((item, index) => `
-                    <div class="group bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-primary-100/50 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
+                    <div class="group bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-primary-100/50 hover:shadow-lg hover:border-primary-200 transition-all duration-300 cursor-pointer"
+                         onclick="(function(e) {
+                           // Previeni il click se si clicca su link o bottoni interni
+                           if (e.target.closest('a, button')) return;
+                           
+                           const card = e.currentTarget;
+                           const content = card.querySelector('.accordion-content');
+                           const chevron = card.querySelector('.chevron-icon');
+                           
+                           // Verifica se l'accordion è attualmente aperto controllando se ha un'altezza effettiva
+                           const isOpen = content && content.scrollHeight > 0 && content.style.maxHeight && content.style.maxHeight !== '0px';
+                           
+                           // Toggle accordion se esiste
+                           if (content && chevron) {
+                             if (isOpen) {
+                               content.style.maxHeight = '0px';
+                             } else {
+                               content.style.maxHeight = content.scrollHeight + 'px';
+                             }
+                             chevron.classList.toggle('rotate-180');
+                           }
+                           
+                           // Chiama la funzione focusOnResult SOLO quando si apre l'accordion (o se non c'è accordion)
+                           if (!isOpen && window.focusOnResult) {
+                             window.focusOnResult('${item.pivot_ID}');
+                           }
+                         })(event)">
                       <div class="p-3">
-                        <!-- Accordion Header -->
-                        ${item[config.result_cards.popup_description] ? `
-                        <button onclick="const content = this.nextElementSibling; const chevron = this.querySelector('.chevron-icon'); content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + 'px'; chevron.classList.toggle('rotate-180');" class="w-full flex items-start gap-2 text-left hover:bg-gray-50/50 rounded transition-colors mb-2">
-                        ` : `
+                        <!-- Card Header -->
                         <div class="flex items-start gap-2 mb-2">
-                        `}
                         <div class="p-1 bg-gradient-to-br from-seconary-100 to-primary-100 rounded-lg group-hover:from-secondary-200 group-hover:to-primary-200 transition-colors duration-300">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-primary-600">
                             <path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14 12.25v-8.5A1.75 1.75 0 0 0 12.25 2h-8.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-8.5a.25.25 0 0 1-.25-.25v-8.5Z"/>
@@ -373,11 +413,11 @@ ${group.description ? `
                           <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
                         </svg>
                         ` : ''}
-                        ${item[config.result_cards.popup_description] ? `</button>` : `</div>`}
+                        </div>
                         
                         <!-- Accordion Content -->
                         ${item[config.result_cards.popup_description] ? `
-                        <div style="max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+                        <div class="accordion-content" style="max-height: 0px; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
                             ${item[config.result_cards.description] ? `
                             <div class="flex items-center gap-1 mb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3 text-primary-400 flex-shrink-0">
@@ -392,9 +432,6 @@ ${group.description ? `
                             </div>
                         </div>
                         ` : ''}
-                        
-                        <!-- Focus Button - Always outside accordion -->
-                        ${createFocusButton(item)}
                       </div>
                     </div>
                     `).join('')}
