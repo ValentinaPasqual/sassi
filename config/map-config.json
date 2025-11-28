@@ -1,86 +1,114 @@
 {
-  "project" : {
+  "project": {
     "projectShortTitle": "SASSI",
-    "projectThumbnailURL": "SASSI_logo_dark.png",
+    "projectThumbnailURL": "project_logo.png",
     "projectTitle": "Storia dell'Alpinismo",
-    "projectSubtitle":"Scalate Storiche in Italia",
-    "projectDescription":"Il Progetto SASSI mappa la storia delle prime ascensioni sull'arco alpino, creando un atlante interattivo dell'alpinismo pionieristico dal XVIII al XX secolo. <br><br> Le mappe mostrano l'evoluzione cronologica dell'esplorazione alpina, contestualizzando ogni ascensione nel proprio periodo storico. Il progetto serve come strumento di ricerca per storici e appassionati, rivelando pattern geografici dell'attività alpinistica e le correlazioni tra sviluppo turistico ed esplorazione.",
-    "mapInfoTitle": "Scopri le prime ascese",
-    "mapInfoDescription": "Questa mappa interattiva ti permette di esplorare i luoghi che hanno fatto la storia dell'alpinismo. Clicca sui marker per visualizzare informazioni dettagliate."
+    "projectSubtitle": "Scalate Storiche in Italia",
+    "projectDescription": "Il Progetto SASSI mappa la storia delle prime ascensioni sull'arco alpino, creando un atlante interattivo dell'alpinismo pionieristico dal XVIII al XX secolo. <br><br> Le mappe mostrano l'evoluzione cronologica dell'esplorazione alpina, contestualizzando ogni ascensione nel proprio periodo storico. Il progetto serve come strumento di ricerca per storici e appassionati, rivelando pattern geografici dell'attività alpinistica e le correlazioni tra sviluppo turistico ed esplorazione.",
+    "mapInfoTitle": "Scopri la mappa",
+    "mapInfoDescription": ""
   },
   "datasetConfig": {
-    "multivalue_rows" : {
-      "Expedition_members": ", ",
+    "multivalue_rows": {
+      "Expedition_members": ",",
       "Fonti_primarie": "|"
-    }, 
-    "fields": {                 
-      "catalogue": [
-        "fonte_primaria",
-        "Expedition_members", 
-        "Dispute",
-        "Type",
-        "Item_Name",
-        "Fonti_primarie",
-        "Fonti_secondarie",
-        "Altri_riferimenti"
-      ],
-      "geodata": [
-        "altitude_span",
-        "SOIUSA"
-      ]
     }
   },
   "result_cards": {
-    "card_title": "Item_Name",  
+    "card_title": "Item_Name",
     "card_subtitle": "Year",
     "card_subtitle_2": "Expedition_members",
-    "card_description": "Note"
+    "card_description": "Note",
+    "popup_description": ""
   },
-  "map": {
-    "initialView": [46.5, 9.8],
-    "initialZoom": 7,
-    "tileLayers": {
-      "Default": {
-        "tileLayer": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": "© OpenStreetMap contributors"
+  "modal_information": {
+    "fields": {
+      "catalogue": {
+        "Type": "Certezza della spedizione",
+        "Note": "Note sulla spedizione",
+        "Date": "Data della spedizione",
+        "Alpinist": "Alpinisti che hanno partecipato alla spedizione",
+        "Guide": "Guide che hanno partecipato alla spedizione",
+        "Fonti_relazionate_membri": "Fonti relazionate ai membri della spedizione",
+        "source": "Fonti"
       },
-      "Stadia.StamenTerrain" : {
-        "tileLayer": "https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png",
-        "attribution": "© OpenStreetMap contributors 222"
-        },
-      "Stadia.StamenTonerLite" : {
-        "tileLayer": "https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png", 
-	      "attribution": "&copy; <a href='https://www.stadiamaps.com/' target='_blank'>Stadia Maps</a> &copy; <a href='https://www.stamen.com/' target='_blank'>Stamen Design</a> &copy; <a href='https://openmaptiles.org/' target='_blank'>OpenMapTiles</a> &copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+      "geodata": {
+        "alt_Name": "Nome alternativo",
+        "altitude": "Altitudine",
+        "SOIUSA": "Divisione SOUISA (Grande parte-Sottogruppo)",
+        "SOIUSA_Codice": "SOIUSA (Codice)",
+        "latitude": "Latitudine",
+        "longitude": "Longitudine"
       }
     }
   },
+  "map": {
+   "initialView": [
+      45.8,
+      10.0
+    ],
+    "initialZoom": 7,
+    "tileLayers": {
+    "Default": {
+      "tileLayer": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "attribution": "© OpenStreetMap contributors"
+    },
+    "Terrain": {
+      "tileLayer": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      "attribution": "© OpenTopoMap (CC-BY-SA)"
+    },
+    "CartoDB_Positron": {
+      "tileLayer": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      "attribution": "© OpenStreetMap © CartoDB"
+    }
+  }
+  },
+  "map_popups": {
+    "show_polygons": "True",
+    "show_related_pins": "True"
+  },
   "searchConfig": {
     "debounceTime": 300,
-    "defaultSort": "date_desc",
+    "defaultSort": "year_desc",
     "sortOptions": [
-      {"value": "title_asc", "label": "Mountain (Asc)"},
-      {"value": "title_desc", "label": "Mountain (Desc)"},
-      {"value": "date_asc", "label": "Year (Asc)"},
-      {"value": "date_desc", "label": "Year (Desc)"}
+      {
+        "value": "item_name_desc",
+        "label": "Item_Name (Desc)"
+      },
+      {
+        "value": "item_name_asc",
+        "label": "Item_Name (Asc)"
+      },
+      {
+        "value": "year_desc",
+        "label": "Year (Desc)"
+      },
+      {
+        "value": "year_asc",
+        "label": "Year (Asc)"
+      }
     ]
   },
   "resultsDisplay": {
-    "tagsToShow": ["Location", "Item_Name"]
+    "tagsToShow": [
+      "Item_Name",
+      "Year"
+    ]
   },
   "sortings": {
-    "title_desc": {
+    "item_name_desc": {
       "field": "Item_Name",
       "order": "desc"
     },
-    "title_asc": {
+    "item_name_asc": {
       "field": "Item_Name",
       "order": "asc"
     },
-    "date_desc": {
+    "year_desc": {
       "field": "Year",
       "order": "desc"
     },
-    "date_asc": {
+    "year_asc": {
       "field": "Year",
       "order": "asc"
     }
@@ -89,45 +117,49 @@
     "Expedition_members": {
       "title": "I membri",
       "category": "Le spedizioni",
-      "size": 1000,
+      "size": 500,
       "conjunction": false,
       "type": "simple"
     },
     "Year": {
       "title": "Le date",
-      "size": 100,
       "category": "Le spedizioni",
+      "size": 500,
       "conjunction": false,
       "type": "range"
     },
     "Location": {
       "title": "Le cime",
       "category": "I luoghi delle spedizioni",
-      "size": 1000,
+      "size": 500,
       "conjunction": false,
       "type": "simple"
     },
     "altitude_span": {
       "title": "Le altitudini",
-      "size": 100,
       "category": "I luoghi delle spedizioni",
+      "size": 500,
       "conjunction": false,
       "type": "range"
     },
     "SOIUSA": {
       "title": "Le divisioni SOIUSA",
       "category": "I luoghi delle spedizioni",
-      "size": 1000,
+      "size": 500,
       "conjunction": false,
       "type": "taxonomy"
-    }, 
+    },
     "Type": {
       "title": "Dispute e Ipotesi",
       "category": "Le imprese incerte",
-      "size": 1000,
+      "size": 500,
       "conjunction": false,
       "type": "simple"
     }
   },
-  "searchableFields": ["Item_Name", "Year", "Location"]
+    "searchableFields": [
+    "Item_Name",
+    "Year",
+    "Expedition_members"
+  ]
 }
