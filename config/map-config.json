@@ -29,6 +29,7 @@
         "Date": "Data della spedizione",
         "Alpinist": "Alpinisti che hanno partecipato alla spedizione",
         "Guide": "Guide che hanno partecipato alla spedizione",
+        "Nationality": "Provenienza della spedizione",
         "Fonti_relazionate_membri": "Fonti relazionate ai membri della spedizione",
         "source": "Fonti"
       },
@@ -127,6 +128,13 @@
       "size": 500,
       "conjunction": false,
       "type": "range"
+    },
+    "Nationality": {
+      "title": "la provenienza",
+      "category": "Le spedizioni",
+      "size": 500,
+      "conjunction": false,
+      "type": "simple"
     },
     "Location": {
       "title": "Le cime",
